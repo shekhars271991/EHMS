@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Phone, Calendar, HeartPulse, Activity, AlertTriangle, ArrowRight, RefreshCw, FolderSearch, UserCheck } from 'lucide-react';
+import { Search, UserPlus, Phone, Calendar, ArrowRight, RefreshCw, FolderSearch, UserCheck, MapPin } from 'lucide-react';
 import { api } from '../../api/client';
 
 interface PatientItem {
@@ -10,6 +10,7 @@ interface PatientItem {
   dob: string;
   gender: string;
   phone: string;
+  address?: string;
   allergies: string[];
   systemicHistory: { diabetes?: boolean; hypertension?: boolean };
   createdAt: string;
@@ -17,7 +18,7 @@ interface PatientItem {
 }
 
 interface PatientDirectoryProps {
-  onSelectPatient: (encounterId: string) => void;
+  onSelectPatient: (patientId: string) => void;
   onOpenRegisterModal: () => void;
 }
 
@@ -25,7 +26,6 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
   const [patients, setPatients] = useState<PatientItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchPatients = async (query?: string) => {
     setLoading(true);
@@ -48,17 +48,8 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
     fetchPatients(searchTerm);
   };
 
-  const handleStartEncounter = async (patientId: string) => {
-    setActionLoading(patientId);
-    try {
-      const encounter = await api.checkIn(patientId, 'Follow-up consultation from Patient Directory');
-      onSelectPatient(encounter.id);
-    } catch (err: any) {
-      console.error('Failed to create encounter:', err);
-      alert('Error: ' + (err.response?.data?.error || err.message));
-    } finally {
-      setActionLoading(null);
-    }
+  const handleOpenProfile = (patientId: string) => {
+    onSelectPatient(patientId);
   };
 
   return (
@@ -71,7 +62,7 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
             Patient Directory & Master Index
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            Search, lookup patient records by Name, Phone Number, or MRN
+            Search, lookup patient records by Name, Phone Number, or MRN ID
           </p>
         </div>
 
@@ -84,7 +75,7 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
         </button>
       </div>
 
-      {/* Search Bar (Name or Phone Number) */}
+      {/* Search Bar (Name, Phone Number, or MRN ID) */}
       <form onSubmit={handleSearchSubmit} className="mb-6">
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
@@ -96,7 +87,7 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
                 setSearchTerm(e.target.value);
                 if (e.target.value === '') fetchPatients('');
               }}
-              placeholder="Search patients by Name (e.g. Shekhar, Ramesh) or Phone Number (e.g. 7337367761)..."
+              placeholder="Search by Name (e.g. Ramesh), Phone Number (e.g. 7408089279), or MRN ID (e.g. EYE-2026-000101)..."
               className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg text-xs font-medium text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
           </div>
@@ -141,7 +132,7 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
           {searchTerm && ` for query "${searchTerm}"`}
         </span>
         <span className="text-[11px] text-slate-400">
-          Phone numbers are uniquely indexed
+          Search indexed by Name, Phone Number, and MRN ID
         </span>
       </div>
 
@@ -154,7 +145,7 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
               <th className="py-3 px-4">Patient Name</th>
               <th className="py-3 px-4">Mobile Phone</th>
               <th className="py-3 px-4">Age / Gender</th>
-              <th className="py-3 px-4">Clinical Flags</th>
+              <th className="py-3 px-4">Address</th>
               <th className="py-3 px-4">Registration Date</th>
               <th className="py-3 px-4 text-right">Action</th>
             </tr>
@@ -193,27 +184,15 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
                     <td className="py-3.5 px-4 text-slate-600">
                       {age}y / {pt.gender}
                     </td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex flex-wrap gap-1">
-                        {pt.systemicHistory?.diabetes && (
-                          <span className="px-1.5 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded text-[10px] font-semibold flex items-center gap-0.5">
-                            <HeartPulse className="w-2.5 h-2.5 text-rose-500" /> DM
-                          </span>
-                        )}
-                        {pt.systemicHistory?.hypertension && (
-                          <span className="px-1.5 py-0.5 bg-orange-50 text-orange-700 border border-orange-200 rounded text-[10px] font-semibold flex items-center gap-0.5">
-                            <Activity className="w-2.5 h-2.5 text-orange-500" /> HTN
-                          </span>
-                        )}
-                        {pt.allergies && pt.allergies.length > 0 && (
-                          <span className="px-1.5 py-0.5 bg-red-100 text-red-800 border border-red-200 rounded text-[10px] font-bold flex items-center gap-0.5">
-                            <AlertTriangle className="w-2.5 h-2.5 text-red-600" /> {pt.allergies[0]}
-                          </span>
-                        )}
-                        {!pt.systemicHistory?.diabetes && !pt.systemicHistory?.hypertension && (!pt.allergies || pt.allergies.length === 0) && (
-                          <span className="text-slate-400 text-[11px]">-</span>
-                        )}
-                      </div>
+                    <td className="py-3.5 px-4 text-slate-600 max-w-[220px]">
+                      {pt.address ? (
+                        <span className="flex items-start gap-1.5" title={pt.address}>
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                          <span className="truncate">{pt.address}</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 italic text-[11px]">-</span>
+                      )}
                     </td>
                     <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
                       <span className="flex items-center gap-1">
@@ -223,12 +202,11 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <button
-                        onClick={() => handleStartEncounter(pt.id)}
-                        disabled={actionLoading === pt.id}
+                        onClick={() => handleOpenProfile(pt.id)}
                         className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded font-medium transition inline-flex items-center gap-1 text-xs"
                       >
                         <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>{actionLoading === pt.id ? 'Starting...' : 'Open Chart'}</span>
+                        <span>Open profile</span>
                         <ArrowRight className="w-3 h-3" />
                       </button>
                     </td>

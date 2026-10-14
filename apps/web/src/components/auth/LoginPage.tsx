@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
 import { api } from '../../api/client';
 
 interface LoginPageProps {
@@ -7,8 +7,8 @@ interface LoginPageProps {
 }
 
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('dr.prajwal@lakshmiaabha.com');
-  const [password, setPassword] = useState('EyeCare@2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,17 +21,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
       const data = await api.login(email, password);
       onLoginSuccess(data.user);
     } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.response?.data?.error || 'Invalid doctor email or password. Please try again.');
+      const status = err.response?.status;
+      if (status === 401) {
+        setError('The email or password is incorrect. Please try again.');
+      } else if (status === 403) {
+        setError('This sign-in is for doctors and clinic staff only.');
+      } else if (status >= 500) {
+        setError('Sign-in is temporarily unavailable. Please try again shortly.');
+      } else if (!err.response) {
+        setError('Unable to connect to the clinic service. Check that it is running, then try again.');
+      } else {
+        setError('Unable to sign in. Please check your details and try again.');
+      }
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleQuickFill = () => {
-    setEmail('dr.prajwal@lakshmiaabha.com');
-    setPassword('EyeCare@2026');
-    setError(null);
   };
 
   return (
@@ -124,13 +128,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-slate-600">
-              <label className="flex items-center space-x-1.5 cursor-pointer">
-                <input type="checkbox" defaultChecked className="rounded text-emerald-600" />
-                <span>Remember doctor session</span>
-              </label>
-            </div>
-
             <button
               type="submit"
               disabled={loading}
@@ -147,25 +144,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </button>
           </form>
 
-          {/* Quick Doctor Account Selector */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <span className="text-[11px] text-slate-400 font-medium block mb-2 text-center uppercase tracking-wider">
-              Testing Credentials
-            </span>
-            <button
-              type="button"
-              onClick={handleQuickFill}
-              className="w-full py-2 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-center space-x-1.5 transition"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Fill: Dr. Prajjwal Kumar (Lakshmi Abha Eye Care)</span>
-            </button>
-          </div>
         </div>
 
-        {/* Footer */}
         <p className="text-center text-xs text-slate-500 mt-6">
-          Lakshmi Abha Eye Care Wellness Center • PostgreSQL 16 EMR
+          Lakshmi Abha Eye Care Wellness Center
         </p>
       </div>
     </div>

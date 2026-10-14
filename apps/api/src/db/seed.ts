@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { randomUUID } from 'crypto';
 
 const prisma = new PrismaClient();
 
@@ -102,7 +103,37 @@ async function main() {
     },
   });
 
-  console.log('✅ Patients created.');
+  const patientUserHash = await bcrypt.hash(randomUUID(), 10);
+
+  async function ensurePatientUserAndProfile(patient: { id: string; mrn: string; firstName: string; lastName: string; phone: string }) {
+    const email = `${patient.mrn.toLowerCase()}@patients.internal`;
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: { mrn: patient.mrn, role: 'PATIENT', fullName: `${patient.firstName} ${patient.lastName}` },
+      create: {
+        email,
+        passwordHash: patientUserHash,
+        fullName: `${patient.firstName} ${patient.lastName}`,
+        role: 'PATIENT',
+        mrn: patient.mrn,
+        phone: patient.phone,
+      },
+    });
+    await prisma.patient.update({
+      where: { id: patient.id },
+      data: { userId: user.id },
+    });
+    await prisma.patientProfile.upsert({
+      where: { patientId: patient.id },
+      update: {},
+      create: { patientId: patient.id },
+    });
+  }
+
+  await ensurePatientUserAndProfile(patientRamesh);
+  await ensurePatientUserAndProfile(patientSunita);
+
+  console.log('✅ Patients linked to users table (MRN) and clinical profiles created.');
 
   // 3. Create Sample Encounter for Ramesh (Senile Cataract Right Eye)
   const encounterRamesh = await prisma.encounter.create({

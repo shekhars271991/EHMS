@@ -7,16 +7,22 @@ export class EncounterController {
   // 1. Live Clinic Queue
   static async getQueue(req: AuthenticatedRequest, res: Response) {
     try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      const now = new Date();
+      const localDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+      }).format(now);
+      const [year, month, day] = localDate.split('-').map(Number);
+      const today = new Date(Date.UTC(year, month - 1, day) - 330 * 60 * 1000);
+      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
 
       const encounters = await prisma.encounter.findMany({
         where: {
-          visitDate: { gte: today },
-          status: { notIn: ['COMPLETED', 'CANCELLED'] },
+          visitDate: { gte: today, lt: tomorrow },
+          status: { not: 'CANCELLED' },
         },
         include: {
           patient: true,
+          prescriptions: { select: { id: true }, take: 1 },
           doctor: { select: { fullName: true } },
           optometrist: { select: { fullName: true } },
         },
@@ -78,6 +84,60 @@ export class EncounterController {
       });
 
       return res.json({ encounter });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  static async updatePayment(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const { paymentStatus, paymentNote } = req.body;
+
+      if (!['PENDING', 'COMPLETE'].includes(paymentStatus)) {
+        return res.status(400).json({ error: 'paymentStatus must be PENDING or COMPLETE' });
+      }
+
+      const encounter = await prisma.encounter.update({
+        where: { id },
+        data: {
+          paymentStatus,
+          paymentNote: paymentNote || null,
+          paymentCompletedAt: paymentStatus === 'COMPLETE' ? new Date() : null,
+        },
+        include: {
+          patient: true,
+          prescriptions: { include: { items: true } },
+        },
+      });
+
+      return res.json({ encounter });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  static async cancelVisit(req: AuthenticatedRequest, res: Response) {
+    try {
+      const { id } = req.params;
+      const encounter = await prisma.encounter.findUnique({
+        where: { id },
+        include: { prescriptions: { select: { id: true }, take: 1 } },
+      });
+
+      if (!encounter) return res.status(404).json({ error: 'Visit not found' });
+      if (encounter.prescriptions.length > 0) {
+        return res.status(409).json({ error: 'A visit with a saved prescription cannot be deleted.' });
+      }
+      if (encounter.status === 'CANCELLED') {
+        return res.status(409).json({ error: 'This visit is already cancelled.' });
+      }
+
+      const cancelled = await prisma.encounter.update({
+        where: { id },
+        data: { status: 'CANCELLED' },
+      });
+      return res.json({ encounter: cancelled });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }

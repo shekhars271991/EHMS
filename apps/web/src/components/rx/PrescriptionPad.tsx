@@ -3,7 +3,7 @@ import { FileText, Plus, Trash2, Printer, Save, Check } from 'lucide-react';
 import { PrescriptionItem, OcularSide } from '@ehms/shared';
 import { api } from '../../api/client';
 
-const COMMON_OPHTHALMIC_DRUGS = [
+const COMMON_MEDICATIONS = [
   'Moxifloxacin 0.5% Eye Drops',
   'Prednisolone Acetate 1% Ophthalmic Suspension',
   'Carboxymethylcellulose 0.5% Lubricant Eye Drops',
@@ -21,6 +21,7 @@ interface PrescriptionPadProps {
   mrn?: string;
   allergies?: string[];
   initialPrescriptions?: any[];
+  onSaved?: () => void;
 }
 
 export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
@@ -29,58 +30,36 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
   mrn = 'EYE-2026-000101',
   allergies = ['Ciprofloxacin'],
   initialPrescriptions,
+  onSaved,
 }) => {
-  const [items, setItems] = useState<PrescriptionItem[]>([
-    {
-      drugName: 'Moxifloxacin 0.5% Eye Drops',
-      eye: 'OD',
-      dosage: '1 drop',
-      frequency: 'QID (4 times/day)',
-      duration: '7 days',
-      specialInstructions: 'Instill into right eye. Wait 5 mins before next drop.',
-    },
-    {
-      drugName: 'Prednisolone Acetate 1% Ophthalmic Suspension',
-      eye: 'OD',
-      dosage: '1 drop',
-      frequency: 'QID (4 times/day) - Tapering',
-      duration: '4 weeks',
-      specialInstructions: 'Shake vial well before instillation. Taper 1 drop weekly.',
-    },
-    {
-      drugName: 'Carboxymethylcellulose 0.5% Lubricant Eye Drops',
-      eye: 'OU',
-      dosage: '1 drop',
-      frequency: 'QID (4 times/day)',
-      duration: '1 month',
-      specialInstructions: 'For ocular lubrication in both eyes.',
-    },
-  ]);
+  const [items, setItems] = useState<PrescriptionItem[]>([]);
 
-  const [newDrug, setNewDrug] = useState(COMMON_OPHTHALMIC_DRUGS[0]);
+  const [newDrug, setNewDrug] = useState('');
   const [newEye, setNewEye] = useState<OcularSide>('OD');
   const [newDosage, setNewDosage] = useState('1 drop');
   const [newFreq, setNewFreq] = useState('TID (3 times/day)');
   const [newDuration, setNewDuration] = useState('14 days');
   const [newNotes, setNewNotes] = useState('');
+  const [generalAdvice, setGeneralAdvice] = useState('');
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    if (initialPrescriptions && initialPrescriptions.length > 0) {
-      const latest = initialPrescriptions[0];
-      if (latest.items && latest.items.length > 0) {
-        setItems(latest.items);
-      }
-    }
-  }, [initialPrescriptions]);
+    const latest = initialPrescriptions?.[0];
+    setItems(latest?.items || []);
+    setGeneralAdvice(latest?.generalAdvice || '');
+  }, [encounterId, initialPrescriptions]);
 
   const addItem = () => {
+    if (!newDrug.trim()) {
+      alert('Enter a medication name first.');
+      return;
+    }
     setItems([
       ...items,
       {
-        drugName: newDrug,
+        drugName: newDrug.trim(),
         eye: newEye,
         dosage: newDosage,
         frequency: newFreq,
@@ -88,6 +67,7 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
         specialInstructions: newNotes,
       },
     ]);
+    setNewDrug('');
     setNewNotes('');
   };
 
@@ -95,11 +75,16 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
     setItems(items.filter((_, i) => i !== idx));
   };
 
-  const handleSaveToPostgres = async () => {
+  const handleSave = async () => {
+    if (items.length === 0) {
+      alert('Add at least one medication before saving the prescription.');
+      return;
+    }
     setSaving(true);
     try {
-      await api.createPrescription(encounterId, items, 'Wear dark sunglasses outdoors, avoid rubbing eyes');
+      await api.createPrescription(encounterId, items, generalAdvice.trim() || undefined);
       setSaved(true);
+      onSaved?.();
       setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
       console.error('Failed to save prescription:', err);
@@ -123,14 +108,14 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
         </div>
         <div className="flex items-center space-x-3">
           <button
-            onClick={handleSaveToPostgres}
+            onClick={handleSave}
             disabled={saving}
             className={`flex items-center space-x-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white shadow-sm transition ${
               saved ? 'bg-emerald-600' : 'bg-slate-900 hover:bg-slate-800'
             }`}
           >
             {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            <span>{saved ? 'Saved to Postgres' : saving ? 'Saving...' : 'Save Rx to Postgres'}</span>
+            <span>{saved ? 'Prescription saved' : saving ? 'Saving...' : 'Save prescription'}</span>
           </button>
 
           <button
@@ -144,7 +129,7 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
       </div>
 
       {/* Printable Letterhead */}
-      <div className="border border-slate-200 rounded-lg p-6 bg-white shadow-2xs">
+      <div className="print-target border border-slate-200 rounded-lg p-6 bg-white shadow-2xs">
         <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-4">
           <div className="flex items-start space-x-3.5">
             <div className="w-16 h-16 rounded-xl overflow-hidden bg-white p-1 border border-emerald-500/30 shadow shrink-0">
@@ -187,7 +172,7 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
         {/* Prescription Table */}
         <div className="mb-6">
           <div className="text-sm font-bold text-slate-900 mb-2 flex items-center gap-1">
-            <span className="text-emerald-700 font-serif italic text-lg font-bold">℞</span> Prescribed Eye Medications
+            <span className="text-emerald-700 font-serif italic text-lg font-bold">℞</span> Prescription Medications
           </div>
 
           <table className="w-full text-left text-xs border border-slate-200">
@@ -237,6 +222,12 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
           </table>
         </div>
 
+        {generalAdvice.trim() && (
+          <div className="mb-6 text-sm whitespace-pre-wrap">
+            <strong>Instructions:</strong> {generalAdvice}
+          </div>
+        )}
+
         {/* Doctor Signature line */}
         <div className="flex justify-between items-end pt-8 mt-6 border-t border-slate-200 text-xs">
           <div>
@@ -254,20 +245,22 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
       {/* Add Medication Form (no-print) */}
       <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200 no-print">
         <h4 className="text-xs font-bold text-slate-700 uppercase mb-3 flex items-center gap-1.5">
-          <Plus className="w-4 h-4 text-emerald-600" /> Add Ophthalmic Medication
+          <Plus className="w-4 h-4 text-emerald-600" /> Add Medication
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs mb-3">
           <div>
-            <label className="font-medium text-slate-600">Eye Drop / Drug</label>
-            <select
+            <label className="font-medium text-slate-600">Medication</label>
+            <input
+              type="text"
+              list="common-medications"
               value={newDrug}
               onChange={(e) => setNewDrug(e.target.value)}
+              placeholder="Start typing a medication..."
               className="w-full mt-1 p-2 border border-slate-300 rounded bg-white font-medium"
-            >
-              {COMMON_OPHTHALMIC_DRUGS.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
+            />
+            <datalist id="common-medications">
+              {COMMON_MEDICATIONS.map((medication) => <option key={medication} value={medication} />)}
+            </datalist>
           </div>
           <div>
             <label className="font-medium text-slate-600">Eye Laterality</label>
@@ -314,7 +307,7 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
               className="w-full mt-1 p-2 border border-slate-300 rounded bg-white"
             />
           </div>
-          <div>
+          <div className="sm:col-span-2 md:col-span-3">
             <label className="font-medium text-slate-600">Instructions / Notes</label>
             <input
               type="text"
@@ -324,6 +317,16 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
               className="w-full mt-1 p-2 border border-slate-300 rounded bg-white"
             />
           </div>
+        </div>
+        <div className="mb-3">
+          <label className="text-xs font-medium text-slate-600">Prescription instructions</label>
+          <textarea
+            value={generalAdvice}
+            onChange={(e) => setGeneralAdvice(e.target.value)}
+            placeholder="Add instructions for this visit's prescription"
+            rows={2}
+            className="w-full mt-1 p-2 border border-slate-300 rounded bg-white text-sm"
+          />
         </div>
         <button
           onClick={addItem}

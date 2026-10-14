@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, AlertTriangle, Clock, Eye, Activity, HeartPulse } from 'lucide-react';
+import { User, AlertTriangle, Clock, Eye, Activity, HeartPulse, MapPin } from 'lucide-react';
 
 interface PatientBannerProps {
   patient: {
@@ -8,6 +8,7 @@ interface PatientBannerProps {
     age: number;
     gender: string;
     phone: string;
+    address?: string;
     allergies: string[];
     systemic: { diabetes: boolean; hypertension: boolean };
     dilatedAt?: string;
@@ -37,6 +38,15 @@ export const PatientBanner: React.FC<PatientBannerProps> = ({ patient }) => {
               <span>{patient.age}y / {patient.gender}</span>
               <span>•</span>
               <span>{patient.phone}</span>
+              {patient.address && (
+                <>
+                  <span>•</span>
+                  <span className="inline-flex items-center gap-1 text-slate-600 truncate max-w-[280px]" title={patient.address}>
+                    <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                    {patient.address}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

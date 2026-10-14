@@ -12,23 +12,31 @@ export class PrescriptionController {
         return res.status(400).json({ error: 'At least one prescription item is required' });
       }
 
-      const prescription = await prisma.prescription.create({
-        data: {
-          encounterId,
-          doctorId,
-          generalAdvice,
-          items: {
-            create: items.map((item: any) => ({
-              drugName: item.drugName,
-              eye: item.eye, // OD, OS, OU
-              dosage: item.dosage,
-              frequency: item.frequency,
-              duration: item.duration,
-              specialInstructions: item.specialInstructions || null,
-            })),
+      const visit = await prisma.encounter.findUnique({ where: { id: encounterId } });
+      if (!visit) return res.status(404).json({ error: 'Visit not found' });
+      if (visit.status === 'CANCELLED') return res.status(409).json({ error: 'Cannot prescribe for a cancelled visit' });
+
+      const prescription = await prisma.$transaction(async (tx) => {
+        const createdPrescription = await tx.prescription.create({
+          data: {
+            encounterId,
+            doctorId,
+            generalAdvice,
+            items: {
+              create: items.map((item: any) => ({
+                drugName: item.drugName,
+                eye: item.eye, // OD, OS, OU
+                dosage: item.dosage,
+                frequency: item.frequency,
+                duration: item.duration,
+                specialInstructions: item.specialInstructions || null,
+              })),
+            },
           },
-        },
-        include: { items: true, doctor: { select: { fullName: true, licenseNumber: true } } },
+          include: { items: true, doctor: { select: { fullName: true, licenseNumber: true } } },
+        });
+        await tx.encounter.update({ where: { id: encounterId }, data: { status: 'COMPLETED' } });
+        return createdPrescription;
       });
 
       return res.status(201).json({ prescription });

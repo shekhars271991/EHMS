@@ -25,7 +25,7 @@ apiClient.interceptors.request.use((config) => {
 // Comprehensive API Endpoints for Ophthalmology EMR
 export const api = {
   // 1. Auth
-  login: async (email = 'dr.patel@eyehospital.com', password = 'eyeClinic123!') => {
+  login: async (email: string, password: string) => {
     const res = await apiClient.post('/auth/login', { email, password });
     if (res.data.token) {
       setAuthToken(res.data.token);
@@ -45,6 +45,21 @@ export const api = {
   createPatient: async (data: any) => {
     const res = await apiClient.post('/patients', data);
     return res.data.patient;
+  },
+  updatePatientProfile: async (patientId: string, fields: Record<string, unknown>) => {
+    const res = await apiClient.patch(`/patients/${patientId}/profile`, fields);
+    return res.data.profile;
+  },
+  updateVisitPayment: async (encounterId: string, paymentStatus: 'PENDING' | 'COMPLETE', paymentNote?: string) => {
+    const res = await apiClient.patch(`/encounters/${encounterId}/payment`, {
+      paymentStatus,
+      paymentNote,
+    });
+    return res.data.encounter;
+  },
+  cancelVisit: async (encounterId: string) => {
+    const res = await apiClient.patch(`/encounters/${encounterId}/cancel`);
+    return res.data.encounter;
   },
 
   // 3. Queue & Encounters CRUD

@@ -10,9 +10,29 @@
 
 /* Print Styles for Printable Prescription Pad */
 @media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
   body {
     background: white !important;
     color: black !important;
+  }
+  body * {
+    visibility: hidden !important;
+  }
+  .print-target,
+  .print-target * {
+    visibility: visible !important;
+  }
+  .print-target {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
   .no-print {
     display: none !important;

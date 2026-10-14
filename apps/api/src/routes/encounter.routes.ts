@@ -10,6 +10,8 @@ router.use(authenticateJWT as any);
 router.get('/queue/live', EncounterController.getQueue as any);
 router.post('/checkin', logAuditEvent('CHECKIN_ENCOUNTER', 'Encounter') as any, EncounterController.checkIn as any);
 router.patch('/:id/status', logAuditEvent('UPDATE_STATUS', 'Encounter') as any, EncounterController.updateStatus as any);
+router.patch('/:id/payment', logAuditEvent('UPDATE_PAYMENT', 'Encounter') as any, EncounterController.updatePayment as any);
+router.patch('/:id/cancel', logAuditEvent('CANCEL_ENCOUNTER', 'Encounter') as any, EncounterController.cancelVisit as any);
 router.get('/:id', logAuditEvent('VIEW_ENCOUNTER', 'Encounter') as any, EncounterController.getEncounterDetails as any);
 
 // Clinical Workup & Exam

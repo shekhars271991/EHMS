@@ -35,6 +35,12 @@ enum UserRole {
   COUNSELOR
   BILLING
   PHARMACIST
+  PATIENT
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETE
 }
 
 enum TonometryMethod {
@@ -54,19 +60,21 @@ enum SurgeryStatus {
   CANCELLED
 }
 
-// 1. Staff & Users
+// 1. Users — clinic staff (login) and patients (identity + MRN)
 model User {
   id               String       @id @default(uuid())
   email            String       @unique
   passwordHash     String
   fullName         String
   role             UserRole
+  mrn              String?      @unique // set for PATIENT role, mirrors Patient.mrn
   licenseNumber    String?
   phone            String?
   isActive         Boolean      @default(true)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
 
+  patientRecord    Patient?
   doctorEncounters Encounter[]  @relation("DoctorEncounters")
   optomEncounters  Encounter[]  @relation("OptomEncounters")
   refractions      Refraction[]
@@ -76,25 +84,46 @@ model User {
   auditLogs        AuditLog[]
 }
 
-// 2. Patient Master
+// 2. Patient Master (clinical chart, linked 1:1 to a PATIENT user + MRN)
 model Patient {
-  id              String       @id @default(uuid())
-  mrn             String       @unique // e.g. "EYE-2026-000101"
-  firstName       String
-  lastName        String
-  dob             DateTime
-  gender          String
-  phone           String       @unique
-  idCard          Json?        // { type: "Aadhaar", number: "..." }
-  emergencyContact Json?       // { name: "...", relation: "...", phone: "..." }
-  allergies       Json         @default("[]") // ["Ciprofloxacin", "Latex"]
-  systemicHistory Json         @default("{}") // { diabetes: true, hypertension: false }
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id               String       @id @default(uuid())
+  userId           String?      @unique
+  user             User?        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  mrn              String       @unique // e.g. "EYE-2026-000101"
+  firstName        String
+  lastName         String
+  dob              DateTime
+  gender           String
+  phone            String       @unique
+  address          String?
+  idCard           Json?        // { type: "Aadhaar", number: "..." }
+  emergencyContact Json?        // { name: "...", relation: "...", phone: "..." }
+  allergies        Json         @default("[]") // ["Ciprofloxacin", "Latex"]
+  systemicHistory  Json         @default("{}") // { diabetes: true, hypertension: true }
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
-  encounters      Encounter[]
-  surgeries       SurgicalBooking[]
-  invoices        Invoice[]
+  profile          PatientProfile?
+  encounters       Encounter[]
+  surgeries        SurgicalBooking[]
+  invoices         Invoice[]
+}
+
+// 2b. Longitudinal clinical profile (tests updated on the patient chart)
+model PatientProfile {
+  id                    String   @id @default(uuid())
+  patientId             String   @unique
+  patient               Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  refraction            Json?    // VA + subjective acceptance (OD/OS)
+  colorVision           Json?    // Ishihara / color vision OD/OS
+  intraocularPressure   Json?    // latest IOP + pachymetry
+  slitBiomicroscopy     Json?    // anterior segment / slit lamp
+  dilatedFundus         Json?    // posterior segment / dilated fundus
+
+  updatedById           String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 // 3. Clinical Encounter / Queue Visit
@@ -116,6 +145,10 @@ model Encounter {
   
   dilatedAt       DateTime?
   dilationDrops   String?      // e.g. "Tropicamide + Phenylephrine"
+
+  paymentStatus        PaymentStatus @default(PENDING)
+  paymentCompletedAt   DateTime?
+  paymentNote          String?       // e.g. "Cash at front desk"
   
   chiefComplaint  String?
   hpi             String?      // History of Present Illness

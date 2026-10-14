@@ -17,6 +17,10 @@ export class AuthController {
         return res.status(401).json({ error: 'Invalid credentials or inactive account' });
       }
 
+      if (user.role === 'PATIENT') {
+        return res.status(403).json({ error: 'This portal is for doctors and clinic staff only.' });
+      }
+
       const isMatch = await bcrypt.compare(password, user.passwordHash);
       if (!isMatch) {
         return res.status(401).json({ error: 'Invalid credentials' });
@@ -45,7 +49,9 @@ export class AuthController {
         },
       });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      // Keep database and infrastructure details in the API logs only.
+      console.error('[Auth] Sign-in failed:', err);
+      return res.status(503).json({ error: 'Sign-in is temporarily unavailable. Please try again shortly.' });
     }
   }
 

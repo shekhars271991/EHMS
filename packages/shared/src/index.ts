@@ -23,7 +23,10 @@ export type UserRole =
   | 'NURSE'
   | 'COUNSELOR'
   | 'BILLING'
-  | 'PHARMACIST';
+  | 'PHARMACIST'
+  | 'PATIENT';
+
+export type PaymentStatus = 'PENDING' | 'COMPLETE';
 
 export type TonometryMethod = 'GOLDMANN' | 'NCT' | 'TONOPEN' | 'PERKINS' | 'ICARE';
 
@@ -201,17 +204,45 @@ export interface PatientSystemicHistory {
   notes?: string;
 }
 
+export interface ColorVisionEye {
+  platesCorrect?: number;
+  platesTotal?: number;
+  result: 'NORMAL' | 'DEFICIENT' | 'NOT_TESTED';
+  deficiencyType?: 'PROTAN' | 'DEUTAN' | 'TRITAN' | 'UNSPECIFIED';
+}
+
+export interface ColorVisionData {
+  testType: 'ISHIHARA' | 'FARNSWORTH' | 'OTHER';
+  OD: ColorVisionEye;
+  OS: ColorVisionEye;
+  notes?: string;
+}
+
+export interface PatientProfile {
+  id: string;
+  patientId: string;
+  refraction?: RefractionData & { vaData?: VisualAcuityData };
+  colorVision?: ColorVisionData;
+  intraocularPressure?: IOPMeasurement;
+  slitBiomicroscopy?: OphthalmicExamData['anteriorSegment'];
+  dilatedFundus?: OphthalmicExamData['posteriorSegment'];
+  updatedAt: string;
+}
+
 export interface Patient {
   id: string;
+  userId?: string;
   mrn: string;
   firstName: string;
   lastName: string;
   dob: string;
   gender: string;
   phone: string;
+  address?: string;
   allergies: string[];
   systemicHistory: PatientSystemicHistory;
   emergencyContact?: PatientEmergencyContact;
+  profile?: PatientProfile;
   createdAt: string;
 }
 

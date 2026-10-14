@@ -4,11 +4,12 @@ import { TonometryMethod } from '@ehms/shared';
 import { api } from '../../api/client';
 
 interface IOPCardProps {
-  encounterId: string;
+  encounterId?: string;
+  patientId?: string;
   initialIOP?: any;
 }
 
-export const IOPCard: React.FC<IOPCardProps> = ({ encounterId, initialIOP }) => {
+export const IOPCard: React.FC<IOPCardProps> = ({ encounterId, patientId, initialIOP }) => {
   const [method, setMethod] = useState<TonometryMethod>('GOLDMANN');
   const [iopOD, setIopOD] = useState<number>(15);
   const [iopOS, setIopOS] = useState<number>(14);
@@ -42,21 +43,31 @@ export const IOPCard: React.FC<IOPCardProps> = ({ encounterId, initialIOP }) => 
   const isHighOD = correctedOD > 21;
   const isHighOS = correctedOS > 21;
 
-  const handleSaveToPostgres = async () => {
+  const handleSave = async () => {
     setSaving(true);
     try {
-      await api.saveIOP(encounterId, {
+      const payload = {
         method,
         iopOD,
         iopOS,
         pachymetryOD: cctOD,
         pachymetryOS: cctOS,
-      });
+        correctedOD,
+        correctedOS,
+        measuredAt: new Date().toISOString(),
+      };
+      if (patientId) {
+        await api.updatePatientProfile(patientId, { intraocularPressure: payload });
+      } else if (encounterId) {
+        await api.saveIOP(encounterId, payload);
+      } else {
+        throw new Error('No patient or visit selected');
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
       console.error('Failed to save IOP:', err);
-      alert('Error saving IOP: ' + err.message);
+      alert('Error saving IOP: ' + (err.response?.data?.error || err.message));
     } finally {
       setSaving(false);
     }
@@ -86,14 +97,14 @@ export const IOPCard: React.FC<IOPCardProps> = ({ encounterId, initialIOP }) => 
           </div>
 
           <button
-            onClick={handleSaveToPostgres}
+            onClick={handleSave}
             disabled={saving}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition ${
               saved ? 'bg-emerald-600' : 'bg-slate-900 hover:bg-slate-800'
             }`}
           >
             {saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-            <span>{saved ? 'Saved to Postgres' : saving ? 'Saving...' : 'Save IOP'}</span>
+            <span>{saved ? 'Saved' : saving ? 'Saving...' : 'Save IOP'}</span>
           </button>
         </div>
       </div>

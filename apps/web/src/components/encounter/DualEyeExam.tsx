@@ -3,11 +3,18 @@ import { Stethoscope, Sparkles, Save, Check } from 'lucide-react';
 import { api } from '../../api/client';
 
 interface DualEyeExamProps {
-  encounterId: string;
+  encounterId?: string;
+  patientId?: string;
+  section?: 'all' | 'slit' | 'fundus';
   initialExam?: any;
 }
 
-export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialExam }) => {
+export const DualEyeExam: React.FC<DualEyeExamProps> = ({
+  encounterId,
+  patientId,
+  section = 'all',
+  initialExam,
+}) => {
   // Lens LOCS III state
   const [lensOD, setLensOD] = useState({
     type: 'CATARACT',
@@ -63,7 +70,7 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialEx
     setLensOD({ type: 'CATARACT', no: 2.5, nc: 2.0, c: 0.5, p: 0.0 });
   };
 
-  const handleSaveToPostgres = async () => {
+  const handleSave = async () => {
     setSaving(true);
     try {
       const anteriorSegment = {
@@ -95,12 +102,27 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialEx
         },
       };
 
-      await api.saveExam(encounterId, { anteriorSegment, posteriorSegment });
+      if (patientId) {
+        if (section === 'slit') {
+          await api.updatePatientProfile(patientId, { slitBiomicroscopy: anteriorSegment });
+        } else if (section === 'fundus') {
+          await api.updatePatientProfile(patientId, { dilatedFundus: posteriorSegment });
+        } else {
+          await api.updatePatientProfile(patientId, {
+            slitBiomicroscopy: anteriorSegment,
+            dilatedFundus: posteriorSegment,
+          });
+        }
+      } else if (encounterId) {
+        await api.saveExam(encounterId, { anteriorSegment, posteriorSegment });
+      } else {
+        throw new Error('No patient or visit selected');
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
       console.error('Failed to save exam:', err);
-      alert('Error saving exam: ' + err.message);
+      alert('Error saving exam: ' + (err.response?.data?.error || err.message));
     } finally {
       setSaving(false);
     }
@@ -111,27 +133,35 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialEx
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Stethoscope className="w-5 h-5 text-emerald-600" />
-          <h3 className="font-bold text-slate-800 text-base">Slit Lamp Biomicroscopy & Dilated Fundus</h3>
+          <h3 className="font-bold text-slate-800 text-base">
+            {section === 'slit'
+              ? 'Slit biomicroscopy'
+              : section === 'fundus'
+              ? 'Dilated fundus'
+              : 'Slit biomicroscopy & dilated fundus'}
+          </h3>
         </div>
 
         <div className="flex items-center space-x-3">
-          <button
-            onClick={applyCataractPreset}
-            className="flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold rounded bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-          >
-            <Sparkles className="w-3 h-3 text-emerald-600" />
-            <span>Cataract Preset</span>
-          </button>
+          {section !== 'fundus' && (
+            <button
+              onClick={applyCataractPreset}
+              className="flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold rounded bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+            >
+              <Sparkles className="w-3 h-3 text-emerald-600" />
+              <span>Cataract preset</span>
+            </button>
+          )}
 
           <button
-            onClick={handleSaveToPostgres}
+            onClick={handleSave}
             disabled={saving}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition ${
               saved ? 'bg-emerald-600' : 'bg-slate-900 hover:bg-slate-800'
             }`}
           >
             {saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-            <span>{saved ? 'Saved to Postgres' : saving ? 'Saving...' : 'Save Exam'}</span>
+            <span>{saved ? 'Saved' : saving ? 'Saving...' : 'Save'}</span>
           </button>
         </div>
       </div>
@@ -143,10 +173,13 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialEx
             <span className="font-bold text-sm px-2.5 py-1 rounded bg-emerald-600 text-white">
               OD (Right Eye)
             </span>
-            <span className="text-xs text-emerald-800 font-medium">Anterior & Posterior Findings</span>
+            <span className="text-xs text-emerald-800 font-medium">
+              {section === 'fundus' ? 'Posterior findings' : section === 'slit' ? 'Anterior findings' : 'Anterior & posterior'}
+            </span>
           </div>
 
           <div className="space-y-3 text-xs">
+            {section !== 'fundus' && (
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="font-semibold text-slate-700">Cornea</label>
@@ -167,8 +200,9 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialEx
                 />
               </div>
             </div>
+            )}
 
-            {/* Lens & LOCS III Cataract Grading */}
+            {section !== 'fundus' && (
             <div className="bg-white p-3 rounded border border-emerald-200 shadow-2xs">
               <div className="flex justify-between items-center mb-2">
                 <span className="font-bold text-slate-800">Lens Status</span>
@@ -229,8 +263,9 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialEx
                 </div>
               )}
             </div>
+            )}
 
-            {/* Posterior Segment / Optic Disc */}
+            {section !== 'slit' && (
             <div className="bg-white p-3 rounded border border-emerald-200">
               <span className="font-bold text-slate-800 block mb-2">Fundus Examination</span>
               <div className="grid grid-cols-2 gap-2 mb-2">
@@ -277,6 +312,7 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialEx
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
 
@@ -286,10 +322,13 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialEx
             <span className="font-bold text-sm px-2.5 py-1 rounded bg-sky-600 text-white">
               OS (Left Eye)
             </span>
-            <span className="text-xs text-sky-800 font-medium">Anterior & Posterior Findings</span>
+            <span className="text-xs text-sky-800 font-medium">
+              {section === 'fundus' ? 'Posterior findings' : section === 'slit' ? 'Anterior findings' : 'Anterior & posterior'}
+            </span>
           </div>
 
           <div className="space-y-3 text-xs">
+            {section !== 'fundus' && (
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="font-semibold text-slate-700">Cornea</label>
@@ -310,8 +349,9 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialEx
                 />
               </div>
             </div>
+            )}
 
-            {/* Lens & LOCS III */}
+            {section !== 'fundus' && (
             <div className="bg-white p-3 rounded border border-sky-200 shadow-2xs">
               <div className="flex justify-between items-center mb-2">
                 <span className="font-bold text-slate-800">Lens Status</span>
@@ -372,8 +412,9 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialEx
                 </div>
               )}
             </div>
+            )}
 
-            {/* Posterior Segment / Optic Disc */}
+            {section !== 'slit' && (
             <div className="bg-white p-3 rounded border border-sky-200">
               <span className="font-bold text-slate-800 block mb-2">Fundus Examination</span>
               <div className="grid grid-cols-2 gap-2 mb-2">
@@ -420,6 +461,7 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialEx
                 </div>
               </div>
             </div>
+            )}
           </div>
         </div>
       </div>

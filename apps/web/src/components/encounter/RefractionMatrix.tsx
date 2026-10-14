@@ -14,11 +14,12 @@ export interface EyeRefractionState {
 }
 
 interface RefractionMatrixProps {
-  encounterId: string;
+  encounterId?: string;
+  patientId?: string;
   initialData?: any;
 }
 
-export const RefractionMatrix: React.FC<RefractionMatrixProps> = ({ encounterId, initialData }) => {
+export const RefractionMatrix: React.FC<RefractionMatrixProps> = ({ encounterId, patientId, initialData }) => {
   const [od, setOd] = useState<EyeRefractionState>({
     sphere: -1.50,
     cylinder: -0.75,
@@ -96,7 +97,7 @@ export const RefractionMatrix: React.FC<RefractionMatrixProps> = ({ encounterId,
     });
   };
 
-  const handleSaveToPostgres = async () => {
+  const handleSave = async () => {
     setSaving(true);
     try {
       const vaData = {
@@ -111,12 +112,18 @@ export const RefractionMatrix: React.FC<RefractionMatrixProps> = ({ encounterId,
         },
       };
 
-      await api.saveRefraction(encounterId, vaData, refractionData);
+      if (patientId) {
+        await api.updatePatientProfile(patientId, { refraction: { vaData, refractionData } });
+      } else if (encounterId) {
+        await api.saveRefraction(encounterId, vaData, refractionData);
+      } else {
+        throw new Error('No patient or visit selected');
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (err: any) {
       console.error('Failed to save refraction:', err);
-      alert('Error saving refraction: ' + err.message);
+      alert('Error saving refraction: ' + (err.response?.data?.error || err.message));
     } finally {
       setSaving(false);
     }
@@ -141,14 +148,14 @@ export const RefractionMatrix: React.FC<RefractionMatrixProps> = ({ encounterId,
           </div>
 
           <button
-            onClick={handleSaveToPostgres}
+            onClick={handleSave}
             disabled={saving}
             className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition ${
               saved ? 'bg-emerald-600' : 'bg-slate-900 hover:bg-slate-800'
             }`}
           >
             {saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
-            <span>{saved ? 'Saved to Postgres' : saving ? 'Saving...' : 'Save Refraction'}</span>
+            <span>{saved ? 'Saved' : saving ? 'Saving...' : 'Save refraction'}</span>
           </button>
         </div>
       </div>
