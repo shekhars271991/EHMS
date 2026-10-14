@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { FileText, Plus, Trash2, Printer, Eye } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileText, Plus, Trash2, Printer, Eye, Save, Check } from 'lucide-react';
 import { PrescriptionItem, OcularSide } from '@ehms/shared';
+import { api } from '../../api/client';
 
 const COMMON_OPHTHALMIC_DRUGS = [
   'Moxifloxacin 0.5% Eye Drops',
@@ -14,7 +15,21 @@ const COMMON_OPHTHALMIC_DRUGS = [
   'Sodium Hyaluronate 0.1% Eye Drops',
 ];
 
-export const PrescriptionPad: React.FC = () => {
+interface PrescriptionPadProps {
+  encounterId: string;
+  patientName?: string;
+  mrn?: string;
+  allergies?: string[];
+  initialPrescriptions?: any[];
+}
+
+export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
+  encounterId,
+  patientName = 'Ramesh Kumar',
+  mrn = 'EYE-2026-000101',
+  allergies = ['Ciprofloxacin'],
+  initialPrescriptions,
+}) => {
   const [items, setItems] = useState<PrescriptionItem[]>([
     {
       drugName: 'Moxifloxacin 0.5% Eye Drops',
@@ -49,6 +64,18 @@ export const PrescriptionPad: React.FC = () => {
   const [newDuration, setNewDuration] = useState('14 days');
   const [newNotes, setNewNotes] = useState('');
 
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (initialPrescriptions && initialPrescriptions.length > 0) {
+      const latest = initialPrescriptions[0];
+      if (latest.items && latest.items.length > 0) {
+        setItems(latest.items);
+      }
+    }
+  }, [initialPrescriptions]);
+
   const addItem = () => {
     setItems([
       ...items,
@@ -68,6 +95,20 @@ export const PrescriptionPad: React.FC = () => {
     setItems(items.filter((_, i) => i !== idx));
   };
 
+  const handleSaveToPostgres = async () => {
+    setSaving(true);
+    try {
+      await api.createPrescription(encounterId, items, 'Wear dark sunglasses outdoors, avoid rubbing eyes');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      console.error('Failed to save prescription:', err);
+      alert('Error saving prescription: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handlePrint = () => {
     window.print();
   };
@@ -80,13 +121,26 @@ export const PrescriptionPad: React.FC = () => {
           <FileText className="w-5 h-5 text-emerald-600" />
           <h3 className="font-bold text-slate-800 text-lg">Ophthalmic Prescription Pad</h3>
         </div>
-        <button
-          onClick={handlePrint}
-          className="flex items-center space-x-2 px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 text-sm font-medium shadow-sm transition"
-        >
-          <Printer className="w-4 h-4" />
-          <span>Print Prescription Pad (A4)</span>
-        </button>
+        <div className="flex items-center space-x-3">
+          <button
+            onClick={handleSaveToPostgres}
+            disabled={saving}
+            className={`flex items-center space-x-1.5 px-4 py-2 rounded-lg text-sm font-medium text-white shadow-sm transition ${
+              saved ? 'bg-emerald-600' : 'bg-slate-900 hover:bg-slate-800'
+            }`}
+          >
+            {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            <span>{saved ? 'Saved to Postgres' : saving ? 'Saving...' : 'Save Rx to Postgres'}</span>
+          </button>
+
+          <button
+            onClick={handlePrint}
+            className="flex items-center space-x-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium shadow-sm transition"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Print Prescription (A4)</span>
+          </button>
+        </div>
       </div>
 
       {/* Printable Letterhead */}
@@ -110,10 +164,10 @@ export const PrescriptionPad: React.FC = () => {
 
         {/* Patient Bar */}
         <div className="bg-slate-50 p-2.5 rounded border border-slate-200 text-xs mb-6 grid grid-cols-4 gap-2">
-          <div><strong>Patient:</strong> Ramesh Kumar</div>
-          <div><strong>MRN:</strong> EYE-2026-000101</div>
-          <div><strong>Age / Gender:</strong> 60y / MALE</div>
-          <div><strong>Allergies:</strong> <span className="text-red-600 font-bold">Ciprofloxacin</span></div>
+          <div><strong>Patient:</strong> {patientName}</div>
+          <div><strong>MRN:</strong> {mrn}</div>
+          <div><strong>Clinic:</strong> Cataract & Cornea</div>
+          <div><strong>Allergies:</strong> <span className="text-red-600 font-bold">{allergies.join(', ') || 'None'}</span></div>
         </div>
 
         {/* Prescription Table */}

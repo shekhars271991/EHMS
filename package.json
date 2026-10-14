@@ -11,6 +11,7 @@
     "dev": "npm run dev --workspaces",
     "build": "npm run build --workspaces",
     "test": "npm run test --workspaces",
+    "test:crud": "node test_crud.js",
     "lint": "npm run lint --workspaces"
   },
   "devDependencies": {

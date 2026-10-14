@@ -1,7 +1,13 @@
-import React, { useState } from 'react';
-import { Stethoscope, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Stethoscope, Sparkles, Save, Check } from 'lucide-react';
+import { api } from '../../api/client';
 
-export const DualEyeExam: React.FC = () => {
+interface DualEyeExamProps {
+  encounterId: string;
+  initialExam?: any;
+}
+
+export const DualEyeExam: React.FC<DualEyeExamProps> = ({ encounterId, initialExam }) => {
   // Lens LOCS III state
   const [lensOD, setLensOD] = useState({
     type: 'CATARACT',
@@ -23,9 +29,81 @@ export const DualEyeExam: React.FC = () => {
   const [cdRatioOD, setCdRatioOD] = useState(0.3);
   const [cdRatioOS, setCdRatioOS] = useState(0.3);
 
-  // Quick Preset Macros
+  // Anterior Segment strings
+  const [corneaOD, setCorneaOD] = useState('Clear, tear film normal');
+  const [acOD, setAcOD] = useState('Deep & quiet, van Herick Gr 4');
+  const [corneaOS, setCorneaOS] = useState('Clear, lustrous');
+  const [acOS, setAcOS] = useState('Deep & quiet');
+
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (initialExam) {
+      if (initialExam.anteriorSegment?.OD?.lens?.locs_iii) {
+        const l = initialExam.anteriorSegment.OD.lens.locs_iii;
+        setLensOD({
+          type: initialExam.anteriorSegment.OD.lens.type || 'CATARACT',
+          no: l.NO || 2.5,
+          nc: l.NC || 2.0,
+          c: l.C || 0.5,
+          p: l.P || 0.0,
+        });
+      }
+      if (initialExam.posteriorSegment?.OD?.optic_disc?.cd_ratio) {
+        setCdRatioOD(initialExam.posteriorSegment.OD.optic_disc.cd_ratio);
+      }
+      if (initialExam.posteriorSegment?.OS?.optic_disc?.cd_ratio) {
+        setCdRatioOS(initialExam.posteriorSegment.OS.optic_disc.cd_ratio);
+      }
+    }
+  }, [initialExam]);
+
   const applyCataractPreset = () => {
     setLensOD({ type: 'CATARACT', no: 2.5, nc: 2.0, c: 0.5, p: 0.0 });
+  };
+
+  const handleSaveToPostgres = async () => {
+    setSaving(true);
+    try {
+      const anteriorSegment = {
+        OD: {
+          cornea: corneaOD,
+          anterior_chamber: acOD,
+          lens: {
+            type: lensOD.type,
+            locs_iii: { NO: lensOD.no, NC: lensOD.nc, C: lensOD.c, P: lensOD.p },
+          },
+        },
+        OS: {
+          cornea: corneaOS,
+          anterior_chamber: acOS,
+          lens: { type: lensOS.type },
+        },
+      };
+
+      const posteriorSegment = {
+        OD: {
+          optic_disc: { margins: 'sharp', cd_ratio: cdRatioOD },
+          macula: 'Normal foveal reflex',
+          periphery: 'Attached 360',
+        },
+        OS: {
+          optic_disc: { margins: 'sharp', cd_ratio: cdRatioOS },
+          macula: 'Normal',
+          periphery: 'Normal',
+        },
+      };
+
+      await api.saveExam(encounterId, { anteriorSegment, posteriorSegment });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      console.error('Failed to save exam:', err);
+      alert('Error saving exam: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -36,15 +114,24 @@ export const DualEyeExam: React.FC = () => {
           <h3 className="font-bold text-slate-800 text-base">Slit Lamp Biomicroscopy & Dilated Fundus</h3>
         </div>
 
-        {/* Quick Macros */}
-        <div className="flex items-center space-x-2">
-          <span className="text-xs text-slate-500 font-medium">Quick Template:</span>
+        <div className="flex items-center space-x-3">
           <button
             onClick={applyCataractPreset}
             className="flex items-center space-x-1 px-2.5 py-1 text-xs font-semibold rounded bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
           >
             <Sparkles className="w-3 h-3 text-emerald-600" />
-            <span>Cataract Workup</span>
+            <span>Cataract Preset</span>
+          </button>
+
+          <button
+            onClick={handleSaveToPostgres}
+            disabled={saving}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition ${
+              saved ? 'bg-emerald-600' : 'bg-slate-900 hover:bg-slate-800'
+            }`}
+          >
+            {saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+            <span>{saved ? 'Saved to Postgres' : saving ? 'Saving...' : 'Save Exam'}</span>
           </button>
         </div>
       </div>
@@ -60,13 +147,13 @@ export const DualEyeExam: React.FC = () => {
           </div>
 
           <div className="space-y-3 text-xs">
-            {/* Cornea & Anterior Chamber */}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="font-semibold text-slate-700">Cornea</label>
                 <input
                   type="text"
-                  defaultValue="Clear, tear film normal"
+                  value={corneaOD}
+                  onChange={(e) => setCorneaOD(e.target.value)}
                   className="w-full mt-1 px-2 py-1.5 border border-slate-300 rounded bg-white"
                 />
               </div>
@@ -74,7 +161,8 @@ export const DualEyeExam: React.FC = () => {
                 <label className="font-semibold text-slate-700">Anterior Chamber</label>
                 <input
                   type="text"
-                  defaultValue="Deep & quiet, van Herick Gr 4"
+                  value={acOD}
+                  onChange={(e) => setAcOD(e.target.value)}
                   className="w-full mt-1 px-2 py-1.5 border border-slate-300 rounded bg-white"
                 />
               </div>
@@ -202,13 +290,13 @@ export const DualEyeExam: React.FC = () => {
           </div>
 
           <div className="space-y-3 text-xs">
-            {/* Cornea & Anterior Chamber */}
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="font-semibold text-slate-700">Cornea</label>
                 <input
                   type="text"
-                  defaultValue="Clear, lustrous"
+                  value={corneaOS}
+                  onChange={(e) => setCorneaOS(e.target.value)}
                   className="w-full mt-1 px-2 py-1.5 border border-slate-300 rounded bg-white"
                 />
               </div>
@@ -216,7 +304,8 @@ export const DualEyeExam: React.FC = () => {
                 <label className="font-semibold text-slate-700">Anterior Chamber</label>
                 <input
                   type="text"
-                  defaultValue="Deep & quiet"
+                  value={acOS}
+                  onChange={(e) => setAcOS(e.target.value)}
                   className="w-full mt-1 px-2 py-1.5 border border-slate-300 rounded bg-white"
                 />
               </div>

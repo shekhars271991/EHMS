@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/layout/Navbar';
 import { PatientBanner } from './components/layout/PatientBanner';
 import { QueueDesk } from './components/queue/QueueDesk';
@@ -9,11 +9,17 @@ import { EyeCanvas } from './components/encounter/EyeCanvas';
 import { SurgeryModule } from './components/surgery/SurgeryModule';
 import { PrescriptionPad } from './components/rx/PrescriptionPad';
 import { NewPatientModal } from './components/patient/NewPatientModal';
+import { api } from './api/client';
 
 export const App: React.FC = () => {
   const [currentTab, setCurrentTab] = useState<string>('encounter');
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState<boolean>(false);
+
+  // Active Encounter & Patient State from PostgreSQL
+  const [activeEncounterId, setActiveEncounterId] = useState<string>('');
+  const [activePatientId, setActivePatientId] = useState<string>('');
+  const [encounterData, setEncounterData] = useState<any>(null);
 
   interface ActivePatientState {
     mrn: string;
@@ -29,7 +35,6 @@ export const App: React.FC = () => {
     iopOS?: number;
   }
 
-  // Active patient in the doctor lane
   const [activePatient, setActivePatient] = useState<ActivePatientState>({
     mrn: 'EYE-2026-000101',
     name: 'Ramesh Kumar',
@@ -44,22 +49,59 @@ export const App: React.FC = () => {
     iopOS: 14.1,
   });
 
-  const handlePatientSelect = (_patientId: string) => {
+  // On first mount, log in and fetch the first live encounter from PostgreSQL
+  useEffect(() => {
+    const initApp = async () => {
+      try {
+        await api.login();
+        const queue = await api.getQueue();
+        if (queue && queue.length > 0) {
+          loadEncounter(queue[0].id);
+        }
+      } catch (err) {
+        console.error('Initial load error:', err);
+      }
+    };
+    initApp();
+  }, []);
+
+  const loadEncounter = async (encounterId: string) => {
+    try {
+      const enc = await api.getEncounterDetails(encounterId);
+      if (enc) {
+        setActiveEncounterId(enc.id);
+        setActivePatientId(enc.patient.id);
+        setEncounterData(enc);
+
+        const birthYear = enc.patient.dob ? new Date(enc.patient.dob).getFullYear() : 1970;
+        const latestIop = enc.iopRecords?.[0];
+
+        setActivePatient({
+          mrn: enc.patient.mrn,
+          name: `${enc.patient.firstName} ${enc.patient.lastName}`,
+          age: new Date().getFullYear() - birthYear,
+          gender: enc.patient.gender,
+          phone: enc.patient.phone,
+          allergies: (enc.patient.allergies as string[]) || [],
+          systemic: enc.patient.systemicHistory || { diabetes: false, hypertension: false },
+          dilatedAt: enc.dilatedAt ? new Date(enc.dilatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+          dilationDrops: enc.dilationDrops,
+          iopOD: latestIop ? Number(latestIop.iopOD) : 15.0,
+          iopOS: latestIop ? Number(latestIop.iopOS) : 14.0,
+        });
+      }
+    } catch (err) {
+      console.error('Error loading encounter from Postgres:', err);
+    }
+  };
+
+  const handlePatientSelect = (encounterId: string) => {
+    loadEncounter(encounterId);
     setCurrentTab('encounter');
   };
 
-  const handleNewPatientRegistered = (newPt: any) => {
-    setActivePatient({
-      mrn: newPt.mrn,
-      name: newPt.name,
-      age: newPt.age,
-      gender: newPt.gender,
-      phone: newPt.phone,
-      allergies: [],
-      systemic: { diabetes: false, hypertension: false },
-      iopOD: 15.0,
-      iopOS: 15.0,
-    });
+  const handleNewPatientRegistered = (newEncounter: any) => {
+    loadEncounter(newEncounter.id);
     setCurrentTab('encounter');
   };
 
@@ -89,8 +131,11 @@ export const App: React.FC = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between no-print">
               <div>
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                  Ophthalmic Clinical Examination
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <span>Ophthalmic Clinical Examination</span>
+                  <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-normal">
+                    PostgreSQL Connected
+                  </span>
                 </h2>
                 <p className="text-xs text-slate-500">
                   Dual-Eye OD / OS Evaluation, Refraction Matrix, Tonometry & Slit Lamp
@@ -107,13 +152,22 @@ export const App: React.FC = () => {
             </div>
 
             {/* Visual Acuity & Manifest Refraction Table */}
-            <RefractionMatrix />
+            <RefractionMatrix
+              encounterId={activeEncounterId}
+              initialData={encounterData?.refraction}
+            />
 
             {/* Tonometry / Intraocular Pressure with Pachymetry Correction */}
-            <IOPCard />
+            <IOPCard
+              encounterId={activeEncounterId}
+              initialIOP={encounterData?.iopRecords?.[0]}
+            />
 
             {/* Slit Lamp Biomicroscopy & Fundus with LOCS III Cataract Grading */}
-            <DualEyeExam />
+            <DualEyeExam
+              encounterId={activeEncounterId}
+              initialExam={encounterData?.exam}
+            />
 
             {/* Interactive Eye Sketch Canvases */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 no-print">
@@ -134,10 +188,24 @@ export const App: React.FC = () => {
         )}
 
         {/* Tab 3: Surgery & OT Suite */}
-        {currentTab === 'surgery' && <SurgeryModule />}
+        {currentTab === 'surgery' && (
+          <SurgeryModule
+            patientId={activePatientId}
+            encounterId={activeEncounterId}
+            initialBooking={encounterData?.surgeries?.[0]}
+          />
+        )}
 
         {/* Tab 4: Prescription Pad & Printable Letterhead */}
-        {currentTab === 'prescriptions' && <PrescriptionPad />}
+        {currentTab === 'prescriptions' && (
+          <PrescriptionPad
+            encounterId={activeEncounterId}
+            patientName={activePatient.name}
+            mrn={activePatient.mrn}
+            allergies={activePatient.allergies}
+            initialPrescriptions={encounterData?.prescriptions}
+          />
+        )}
       </main>
 
       {/* New Patient Registration Modal */}

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { X, UserPlus } from 'lucide-react';
+import { X, UserPlus, Loader2 } from 'lucide-react';
+import { api } from '../../api/client';
 
 interface NewPatientModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (newPatient: any) => void;
+  onSuccess: (newEncounter: any) => void;
 }
 
 export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClose, onSuccess }) => {
@@ -17,24 +18,45 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
   const [allergies, setAllergies] = useState('');
   const [diabetes, setDiabetes] = useState(false);
   const [hypertension, setHypertension] = useState(false);
+  const [chiefComplaint, setChiefComplaint] = useState('Routine eye checkup');
+  const [saving, setSaving] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newPt = {
-      id: `enc-${Date.now()}`,
-      mrn: `EYE-2026-000${Math.floor(100 + Math.random() * 900)}`,
-      name: `${firstName} ${lastName}`,
-      age: 2026 - parseInt(dob.slice(0, 4)),
-      gender: gender === 'MALE' ? 'M' : 'F',
-      phone,
-      status: 'REGISTERED',
-      tokenNumber: Math.floor(100 + Math.random() * 50),
-      chiefComplaint: 'New patient registration',
-    };
-    onSuccess(newPt);
-    onClose();
+    setSaving(true);
+    try {
+      const allergyList = allergies
+        ? allergies.split(',').map((a) => a.trim()).filter(Boolean)
+        : [];
+
+      // 1. Create Patient in PostgreSQL
+      const patient = await api.createPatient({
+        firstName,
+        lastName,
+        dob,
+        gender,
+        phone,
+        idCard: aadhaar ? { type: 'Aadhaar', number: aadhaar } : null,
+        allergies: allergyList,
+        systemicHistory: { diabetes, hypertension },
+      });
+
+      // 2. Check patient into today's queue
+      const encounter = await api.checkIn(patient.id, chiefComplaint);
+
+      onSuccess({
+        ...encounter,
+        patient,
+      });
+      onClose();
+    } catch (err: any) {
+      console.error('Failed to create patient:', err);
+      alert('Error registering patient: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -43,7 +65,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
         <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
           <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
             <UserPlus className="w-5 h-5 text-emerald-600" />
-            Patient Registration & Triage
+            Patient Registration & Triage (PostgreSQL)
           </h3>
           <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-slate-700">
             <X className="w-5 h-5" />
@@ -111,6 +133,18 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
           </div>
 
           <div>
+            <label className="font-semibold text-slate-700">Chief Complaint *</label>
+            <input
+              type="text"
+              required
+              value={chiefComplaint}
+              onChange={(e) => setChiefComplaint(e.target.value)}
+              className="w-full mt-1 p-2 border border-slate-300 rounded"
+              placeholder="e.g. Blurry vision, pain, redness"
+            />
+          </div>
+
+          <div>
             <label className="font-semibold text-slate-700">National ID (Aadhaar / Passport)</label>
             <input
               type="text"
@@ -160,15 +194,18 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
             <button
               type="button"
               onClick={onClose}
+              disabled={saving}
               className="px-4 py-2 border border-slate-300 rounded text-slate-600 hover:bg-slate-50 font-medium"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-emerald-600 text-white font-semibold rounded hover:bg-emerald-700 transition"
+              disabled={saving}
+              className="flex items-center space-x-1 px-5 py-2 bg-emerald-600 text-white font-semibold rounded hover:bg-emerald-700 transition"
             >
-              Register & Add to Queue
+              {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{saving ? 'Saving to Postgres...' : 'Register & Add to Queue'}</span>
             </button>
           </div>
         </form>

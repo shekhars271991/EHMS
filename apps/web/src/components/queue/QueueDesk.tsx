@@ -1,90 +1,75 @@
-import React, { useState } from 'react';
-import { Users, Clock, ArrowRight, UserPlus, Droplets, Search } from 'lucide-react';
-import { VisitStatus } from '@ehms/shared';
+import React, { useState, useEffect } from 'react';
+import { Users, Clock, ArrowRight, UserPlus, Droplets, Search, RefreshCw } from 'lucide-react';
+import { api } from '../../api/client';
 
 interface QueueItem {
   id: string;
+  encounterId: string;
   mrn: string;
   name: string;
   age: number;
   gender: string;
   phone: string;
-  status: VisitStatus;
+  status: string;
   tokenNumber: number;
   dilatedAt?: string;
   chiefComplaint: string;
 }
 
 interface QueueDeskProps {
-  onSelectPatient: (patientId: string) => void;
+  onSelectPatient: (encounterId: string) => void;
   onOpenRegisterModal: () => void;
 }
 
 export const QueueDesk: React.FC<QueueDeskProps> = ({ onSelectPatient, onOpenRegisterModal }) => {
   const [filter, setFilter] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  const [queue, setQueue] = useState<QueueItem[]>([
-    {
-      id: 'enc-1',
-      mrn: 'EYE-2026-000101',
-      name: 'Ramesh Kumar',
-      age: 60,
-      gender: 'M',
-      phone: '+91 98111 22334',
-      status: 'DOCTOR_EXAM',
-      tokenNumber: 101,
-      dilatedAt: '10:15 AM',
-      chiefComplaint: 'Diminution of vision right eye, night glare',
-    },
-    {
-      id: 'enc-2',
-      mrn: 'EYE-2026-000102',
-      name: 'Sunita Rao',
-      age: 52,
-      gender: 'F',
-      phone: '+91 98222 33445',
-      status: 'DILATING',
-      tokenNumber: 102,
-      dilatedAt: '10:40 AM',
-      chiefComplaint: 'Routine glaucoma follow-up, eye redness',
-    },
-    {
-      id: 'enc-3',
-      mrn: 'EYE-2026-000103',
-      name: 'Mohammad Tariq',
-      age: 38,
-      gender: 'M',
-      phone: '+91 98333 44556',
-      status: 'OPTOMETRY_IN_PROGRESS',
-      tokenNumber: 103,
-      chiefComplaint: 'Headache & blurred near vision with computers',
-    },
-    {
-      id: 'enc-4',
-      mrn: 'EYE-2026-000104',
-      name: 'Aanya Verma',
-      age: 8,
-      gender: 'F',
-      phone: '+91 98444 55667',
-      status: 'REGISTERED',
-      tokenNumber: 104,
-      chiefComplaint: 'Squint evaluation / school vision screening referral',
-    },
-  ]);
+  const fetchQueue = async () => {
+    setLoading(true);
+    try {
+      // Ensure we have a dev token
+      await api.login();
+      const encounters = await api.getQueue();
+      if (encounters && encounters.length > 0) {
+        const mapped = encounters.map((e: any) => {
+          const birthYear = e.patient.dob ? new Date(e.patient.dob).getFullYear() : 1970;
+          return {
+            id: e.id,
+            encounterId: e.id,
+            mrn: e.patient.mrn,
+            name: `${e.patient.firstName} ${e.patient.lastName}`,
+            age: new Date().getFullYear() - birthYear,
+            gender: e.patient.gender,
+            phone: e.patient.phone,
+            status: e.status,
+            tokenNumber: e.tokenNumber,
+            dilatedAt: e.dilatedAt ? new Date(e.dilatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : undefined,
+            chiefComplaint: e.chiefComplaint || 'Routine ophthalmic consultation',
+          };
+        });
+        setQueue(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching live queue:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleDilate = (id: string) => {
-    setQueue((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status: 'DILATING',
-              dilatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            }
-          : item
-      )
-    );
+  useEffect(() => {
+    fetchQueue();
+  }, []);
+
+  const handleDilate = async (encounterId: string) => {
+    try {
+      await api.updateEncounterStatus(encounterId, 'DILATING', 'Tropicamide 0.8% + Phenylephrine 5%');
+      await fetchQueue();
+    } catch (err) {
+      console.error('Error setting dilation:', err);
+    }
   };
 
   const filteredQueue = queue.filter((item) => {
@@ -107,12 +92,20 @@ export const QueueDesk: React.FC<QueueDeskProps> = ({ onSelectPatient, onOpenReg
         <div>
           <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <Users className="w-5 h-5 text-emerald-600" />
-            Today's Outpatient Clinic Queue
+            Today's Outpatient Clinic Queue (Live PostgreSQL)
           </h2>
-          <p className="text-xs text-slate-500">Live patient handoff tracking (Registration → Optometry → Dilation → Doctor Exam)</p>
+          <p className="text-xs text-slate-500">Live patient stages: Registration → Optometry → Dilation → Doctor Exam</p>
         </div>
 
         <div className="flex items-center space-x-3">
+          <button
+            onClick={fetchQueue}
+            title="Refresh queue from PostgreSQL"
+            className="p-2 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
             <input
@@ -172,8 +165,14 @@ export const QueueDesk: React.FC<QueueDeskProps> = ({ onSelectPatient, onOpenReg
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredQueue.map((pt) => {
-              return (
+            {filteredQueue.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="py-8 text-center text-slate-400">
+                  {loading ? 'Loading queue from PostgreSQL...' : 'No patients found in this queue category.'}
+                </td>
+              </tr>
+            ) : (
+              filteredQueue.map((pt) => (
                 <tr key={pt.id} className="hover:bg-slate-50/70 transition">
                   <td className="py-3 px-3 font-mono font-bold text-slate-900">
                     #{pt.tokenNumber}
@@ -208,7 +207,7 @@ export const QueueDesk: React.FC<QueueDeskProps> = ({ onSelectPatient, onOpenReg
                   <td className="py-3 px-3 text-right space-x-2">
                     {pt.status !== 'DILATING' && (
                       <button
-                        onClick={() => handleDilate(pt.id)}
+                        onClick={() => handleDilate(pt.encounterId)}
                         title="Instill Dilation Drops"
                         className="p-1 rounded text-purple-600 hover:bg-purple-50 transition"
                       >
@@ -216,7 +215,7 @@ export const QueueDesk: React.FC<QueueDeskProps> = ({ onSelectPatient, onOpenReg
                       </button>
                     )}
                     <button
-                      onClick={() => onSelectPatient(pt.id)}
+                      onClick={() => onSelectPatient(pt.encounterId)}
                       className="px-3 py-1 bg-slate-900 text-white rounded hover:bg-slate-800 font-medium transition inline-flex items-center gap-1"
                     >
                       <span>Open Chart</span>
@@ -224,8 +223,8 @@ export const QueueDesk: React.FC<QueueDeskProps> = ({ onSelectPatient, onOpenReg
                     </button>
                   </td>
                 </tr>
-              );
-            })}
+              ))
+            )}
           </tbody>
         </table>
       </div>

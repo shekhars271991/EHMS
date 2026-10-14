@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Eye, ArrowRightLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Eye, ArrowRightLeft, Save, Check } from 'lucide-react';
+import { api } from '../../api/client';
 
 export interface EyeRefractionState {
   sphere: number;
@@ -12,7 +13,12 @@ export interface EyeRefractionState {
   nearVa: string;
 }
 
-export const RefractionMatrix: React.FC = () => {
+interface RefractionMatrixProps {
+  encounterId: string;
+  initialData?: any;
+}
+
+export const RefractionMatrix: React.FC<RefractionMatrixProps> = ({ encounterId, initialData }) => {
   const [od, setOd] = useState<EyeRefractionState>({
     sphere: -1.50,
     cylinder: -0.75,
@@ -36,11 +42,41 @@ export const RefractionMatrix: React.FC = () => {
   });
 
   const [pd, setPd] = useState(63);
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  // Optical cylinder transposition algorithm:
-  // New Sphere = Sphere + Cylinder
-  // New Cylinder = -Cylinder
-  // New Axis = (Axis + 90) % 180 (0 becomes 180)
+  useEffect(() => {
+    if (initialData?.refractionData?.subjectiveAcceptance) {
+      const sub = initialData.refractionData.subjectiveAcceptance;
+      const va = initialData.vaData;
+      if (sub.OD) {
+        setOd({
+          sphere: sub.OD.sphere ?? -1.50,
+          cylinder: sub.OD.cylinder ?? -0.75,
+          axis: sub.OD.axis ?? 180,
+          add: sub.OD.add ?? 2.25,
+          distanceUnaided: va?.OD?.distanceUnaided ?? '6/24',
+          distancePinhole: va?.OD?.distancePinhole ?? '6/12',
+          bcva: sub.OD.va ?? '6/12',
+          nearVa: sub.OD.nearVa ?? 'N8',
+        });
+      }
+      if (sub.OS) {
+        setOs({
+          sphere: sub.OS.sphere ?? -0.25,
+          cylinder: sub.OS.cylinder ?? 0,
+          axis: sub.OS.axis ?? 0,
+          add: sub.OS.add ?? 2.25,
+          distanceUnaided: va?.OS?.distanceUnaided ?? '6/6',
+          distancePinhole: va?.OS?.distancePinhole ?? '6/6',
+          bcva: sub.OS.va ?? '6/6',
+          nearVa: sub.OS.nearVa ?? 'N6',
+        });
+      }
+      if (sub.pdDistance) setPd(sub.pdDistance);
+    }
+  }, [initialData]);
+
   const transposeCylinder = (eye: 'OD' | 'OS') => {
     const target = eye === 'OD' ? od : os;
     const setTarget = eye === 'OD' ? setOd : setOs;
@@ -60,6 +96,32 @@ export const RefractionMatrix: React.FC = () => {
     });
   };
 
+  const handleSaveToPostgres = async () => {
+    setSaving(true);
+    try {
+      const vaData = {
+        OD: { distanceUnaided: od.distanceUnaided, distancePinhole: od.distancePinhole },
+        OS: { distanceUnaided: os.distanceUnaided, distancePinhole: os.distancePinhole },
+      };
+      const refractionData = {
+        subjectiveAcceptance: {
+          OD: { sphere: od.sphere, cylinder: od.cylinder, axis: od.axis, add: od.add, va: od.bcva, nearVa: od.nearVa },
+          OS: { sphere: os.sphere, cylinder: os.cylinder, axis: os.axis, add: os.add, va: os.bcva, nearVa: os.nearVa },
+          pdDistance: pd,
+        },
+      };
+
+      await api.saveRefraction(encounterId, vaData, refractionData);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      console.error('Failed to save refraction:', err);
+      alert('Error saving refraction: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
       <div className="flex items-center justify-between mb-4">
@@ -67,14 +129,27 @@ export const RefractionMatrix: React.FC = () => {
           <Eye className="w-5 h-5 text-emerald-600" />
           <h3 className="font-bold text-slate-800 text-base">Visual Acuity & Manifest Refraction</h3>
         </div>
-        <div className="flex items-center space-x-2 text-xs">
-          <span className="text-slate-500 font-medium">PD (mm):</span>
-          <input
-            type="number"
-            value={pd}
-            onChange={(e) => setPd(Number(e.target.value))}
-            className="w-16 px-2 py-1 border border-slate-300 rounded text-center font-bold text-slate-800"
-          />
+        <div className="flex items-center space-x-3 text-xs">
+          <div className="flex items-center space-x-1">
+            <span className="text-slate-500 font-medium">PD (mm):</span>
+            <input
+              type="number"
+              value={pd}
+              onChange={(e) => setPd(Number(e.target.value))}
+              className="w-14 px-2 py-1 border border-slate-300 rounded text-center font-bold text-slate-800"
+            />
+          </div>
+
+          <button
+            onClick={handleSaveToPostgres}
+            disabled={saving}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition ${
+              saved ? 'bg-emerald-600' : 'bg-slate-900 hover:bg-slate-800'
+            }`}
+          >
+            {saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+            <span>{saved ? 'Saved to Postgres' : saving ? 'Saving...' : 'Save Refraction'}</span>
+          </button>
         </div>
       </div>
 
@@ -95,7 +170,7 @@ export const RefractionMatrix: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {/* OD - Right Eye (Green) */}
+            {/* OD - Right Eye */}
             <tr className="hover:bg-emerald-50/30 transition-colors">
               <td className="py-3 px-3">
                 <span className="inline-flex items-center justify-center px-2 py-1 font-bold text-xs rounded bg-emerald-100 text-emerald-800 border border-emerald-300">
@@ -183,7 +258,7 @@ export const RefractionMatrix: React.FC = () => {
               </td>
             </tr>
 
-            {/* OS - Left Eye (Blue) */}
+            {/* OS - Left Eye */}
             <tr className="hover:bg-sky-50/30 transition-colors">
               <td className="py-3 px-3">
                 <span className="inline-flex items-center justify-center px-2 py-1 font-bold text-xs rounded bg-sky-100 text-sky-800 border border-sky-300">

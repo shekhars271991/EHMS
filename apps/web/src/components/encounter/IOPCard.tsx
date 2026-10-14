@@ -1,16 +1,32 @@
-import React, { useState, useMemo } from 'react';
-import { Gauge, AlertCircle } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Gauge, AlertCircle, Save, Check } from 'lucide-react';
 import { TonometryMethod } from '@ehms/shared';
+import { api } from '../../api/client';
 
-export const IOPCard: React.FC = () => {
+interface IOPCardProps {
+  encounterId: string;
+  initialIOP?: any;
+}
+
+export const IOPCard: React.FC<IOPCardProps> = ({ encounterId, initialIOP }) => {
   const [method, setMethod] = useState<TonometryMethod>('GOLDMANN');
-  const [iopOD, setIopOD] = useState<number>(16);
-  const [iopOS, setIopOS] = useState<number>(15);
-  const [cctOD, setCctOD] = useState<number>(535);
-  const [cctOS, setCctOS] = useState<number>(540);
+  const [iopOD, setIopOD] = useState<number>(15);
+  const [iopOS, setIopOS] = useState<number>(14);
+  const [cctOD, setCctOD] = useState<number>(540);
+  const [cctOS, setCctOS] = useState<number>(542);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
-  // Dresden pachymetry correction formula:
-  // Corrected IOP = Measured IOP + ((545 - CCT) / 50) * 2.5
+  useEffect(() => {
+    if (initialIOP) {
+      if (initialIOP.method) setMethod(initialIOP.method);
+      if (initialIOP.iopOD) setIopOD(Number(initialIOP.iopOD));
+      if (initialIOP.iopOS) setIopOS(Number(initialIOP.iopOS));
+      if (initialIOP.pachymetryOD) setCctOD(Number(initialIOP.pachymetryOD));
+      if (initialIOP.pachymetryOS) setCctOS(Number(initialIOP.pachymetryOS));
+    }
+  }, [initialIOP]);
+
   const correctedOD = useMemo(() => {
     if (!cctOD) return iopOD;
     const diff = (545 - cctOD) / 50 * 2.5;
@@ -26,6 +42,26 @@ export const IOPCard: React.FC = () => {
   const isHighOD = correctedOD > 21;
   const isHighOS = correctedOS > 21;
 
+  const handleSaveToPostgres = async () => {
+    setSaving(true);
+    try {
+      await api.saveIOP(encounterId, {
+        method,
+        iopOD,
+        iopOS,
+        pachymetryOD: cctOD,
+        pachymetryOS: cctOS,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      console.error('Failed to save IOP:', err);
+      alert('Error saving IOP: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
       <div className="flex items-center justify-between mb-4">
@@ -33,19 +69,32 @@ export const IOPCard: React.FC = () => {
           <Gauge className="w-5 h-5 text-sky-600" />
           <h3 className="font-bold text-slate-800 text-base">Intraocular Pressure (Tonometry)</h3>
         </div>
-        <div className="flex items-center space-x-2">
-          <label className="text-xs font-medium text-slate-500">Method:</label>
-          <select
-            value={method}
-            onChange={(e) => setMethod(e.target.value as TonometryMethod)}
-            className="text-xs border border-slate-300 rounded px-2 py-1 font-semibold text-slate-700 bg-white"
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-1.5">
+            <label className="text-xs font-medium text-slate-500">Method:</label>
+            <select
+              value={method}
+              onChange={(e) => setMethod(e.target.value as TonometryMethod)}
+              className="text-xs border border-slate-300 rounded px-2 py-1 font-semibold text-slate-700 bg-white"
+            >
+              <option value="GOLDMANN">Goldmann Applanation (GAT)</option>
+              <option value="NCT">Non-Contact Tonometry (Air Puff)</option>
+              <option value="TONOPEN">Tonopen</option>
+              <option value="PERKINS">Perkins Handheld</option>
+              <option value="ICARE">Icare Rebound</option>
+            </select>
+          </div>
+
+          <button
+            onClick={handleSaveToPostgres}
+            disabled={saving}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition ${
+              saved ? 'bg-emerald-600' : 'bg-slate-900 hover:bg-slate-800'
+            }`}
           >
-            <option value="GOLDMANN">Goldmann Applanation (GAT)</option>
-            <option value="NCT">Non-Contact Tonometry (Air Puff)</option>
-            <option value="TONOPEN">Tonopen</option>
-            <option value="PERKINS">Perkins Handheld</option>
-            <option value="ICARE">Icare Rebound</option>
-          </select>
+            {saved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+            <span>{saved ? 'Saved to Postgres' : saving ? 'Saving...' : 'Save IOP'}</span>
+          </button>
         </div>
       </div>
 

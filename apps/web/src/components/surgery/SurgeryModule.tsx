@@ -1,8 +1,20 @@
-import React, { useState, useRef } from 'react';
-import { ShieldCheck, PenTool, CheckCircle, Calculator } from 'lucide-react';
-import { WHOSurgicalChecklist } from '@ehms/shared';
+import React, { useState, useRef, useEffect } from 'react';
+import { ShieldCheck, PenTool, CheckCircle, Calculator, Save, Check } from 'lucide-react';
+import { WHOSurgicalChecklist, OcularSide } from '@ehms/shared';
+import { api } from '../../api/client';
 
-export const SurgeryModule: React.FC = () => {
+interface SurgeryModuleProps {
+  patientId: string;
+  encounterId: string;
+  initialBooking?: any;
+}
+
+export const SurgeryModule: React.FC<SurgeryModuleProps> = ({ patientId, encounterId, initialBooking }) => {
+  const [eye, setEye] = useState<OcularSide>('OD');
+  const [procedureName, setProcedureName] = useState('Phacoemulsification with Foldable IOL');
+  const [theatreRoom, setTheatreRoom] = useState('OT-1');
+  const [anaesthesiaType, setAnaesthesiaType] = useState('TOPICAL');
+
   // Biometry state
   const [axialLength, setAxialLength] = useState<number>(23.45);
   const [k1, setK1] = useState<number>(43.50);
@@ -11,11 +23,16 @@ export const SurgeryModule: React.FC = () => {
   const [formula, setFormula] = useState<string>('BARRETT_UNIVERSAL_II');
   const [aConstant, setAConstant] = useState<number>(118.9);
 
+  // Booking state from PostgreSQL
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [savingBooking, setSavingBooking] = useState(false);
+  const [savedBooking, setSavedBooking] = useState(false);
+
   // WHO Safety Checklist state
   const [checklist, setChecklist] = useState<WHOSurgicalChecklist>({
     patientIdentityConfirmed: true,
     surgicalSiteMarkedODorOS: true,
-    consentFormVerified: true,
+    consentFormVerified: false,
     dilationAdequate: true,
     iolPowerDoubleChecked: true,
     allergiesReviewed: true,
@@ -24,8 +41,6 @@ export const SurgeryModule: React.FC = () => {
     signOutSutureAndIOLSerialLogged: false,
   });
 
-  // Simplified SRK/T approximation for instant clinical calculation preview:
-  // P = A - 2.5 * AL - 0.9 * K
   const avgK = (k1 + k2) / 2;
   const approxIOLPower = Number((aConstant - 2.5 * axialLength - 0.9 * avgK - targetRefraction * 1.5).toFixed(1));
 
@@ -33,6 +48,62 @@ export const SurgeryModule: React.FC = () => {
   const [signatureDone, setSignatureDone] = useState(false);
   const sigCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isSigning, setIsSigning] = useState(false);
+
+  useEffect(() => {
+    if (initialBooking) {
+      setBookingId(initialBooking.id);
+      if (initialBooking.eye) setEye(initialBooking.eye);
+      if (initialBooking.procedureName) setProcedureName(initialBooking.procedureName);
+      if (initialBooking.theatreRoom) setTheatreRoom(initialBooking.theatreRoom);
+      if (initialBooking.anaesthesiaType) setAnaesthesiaType(initialBooking.anaesthesiaType);
+      if (initialBooking.consentSigned) setSignatureDone(true);
+      if (initialBooking.biometryData) {
+        const b = initialBooking.biometryData;
+        if (b.axialLengthOD) setAxialLength(b.axialLengthOD);
+        if (b.k1OD) setK1(b.k1OD);
+        if (b.k2OD) setK2(b.k2OD);
+        if (b.chosenFormula) setFormula(b.chosenFormula);
+        if (b.targetRefraction) setTargetRefraction(b.targetRefraction);
+      }
+      if (initialBooking.preOpChecklist) {
+        setChecklist({ ...checklist, ...initialBooking.preOpChecklist });
+      }
+    }
+  }, [initialBooking]);
+
+  const handleBookSurgery = async () => {
+    setSavingBooking(true);
+    try {
+      const booking = await api.bookSurgery({
+        patientId,
+        encounterId,
+        procedureName,
+        eye,
+        scheduledDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        theatreRoom,
+        anaesthesiaType,
+        biometryData: {
+          axialLengthOD: axialLength,
+          k1OD: k1,
+          k2OD: k2,
+          chosenFormula: formula,
+          targetRefraction,
+          iolModel: 'Alcon AcrySof IQ SN60WF',
+          aConstant,
+          calculatedIOLPower: approxIOLPower,
+        },
+      });
+
+      setBookingId(booking.id);
+      setSavedBooking(true);
+      setTimeout(() => setSavedBooking(false), 3000);
+    } catch (err: any) {
+      console.error('Failed to book surgery:', err);
+      alert('Error booking surgery: ' + err.message);
+    } finally {
+      setSavingBooking(false);
+    }
+  };
 
   const startSigning = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = sigCanvasRef.current;
@@ -58,6 +129,20 @@ export const SurgeryModule: React.FC = () => {
     ctx.stroke();
   };
 
+  const handleSaveSignature = async () => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL();
+    setSignatureDone(true);
+    if (bookingId) {
+      try {
+        await api.signConsent(bookingId, dataUrl);
+      } catch (err) {
+        console.error('Error saving signature to Postgres:', err);
+      }
+    }
+  };
+
   const clearSignature = () => {
     const canvas = sigCanvasRef.current;
     if (!canvas) return;
@@ -67,8 +152,16 @@ export const SurgeryModule: React.FC = () => {
     setSignatureDone(false);
   };
 
-  const toggleChecklistItem = (key: keyof WHOSurgicalChecklist) => {
-    setChecklist((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleChecklistItem = async (key: keyof WHOSurgicalChecklist) => {
+    const updated = { ...checklist, [key]: !checklist[key] };
+    setChecklist(updated);
+    if (bookingId) {
+      try {
+        await api.updateChecklist(bookingId, updated);
+      } catch (err) {
+        console.error('Error updating checklist in Postgres:', err);
+      }
+    }
   };
 
   return (
@@ -80,9 +173,28 @@ export const SurgeryModule: React.FC = () => {
             <Calculator className="w-5 h-5 text-emerald-600" />
             <h3 className="font-bold text-slate-800 text-base">Cataract Biometry & IOL Calculation</h3>
           </div>
-          <span className="text-xs px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
-            Eye: OD (Right Eye)
-          </span>
+          <div className="flex items-center space-x-3">
+            <select
+              value={eye}
+              onChange={(e) => setEye(e.target.value as OcularSide)}
+              className="text-xs px-2.5 py-1 rounded bg-emerald-50 text-emerald-800 font-bold border border-emerald-300"
+            >
+              <option value="OD">Eye: OD (Right Eye)</option>
+              <option value="OS">Eye: OS (Left Eye)</option>
+              <option value="OU">Eye: OU (Both Eyes)</option>
+            </select>
+
+            <button
+              onClick={handleBookSurgery}
+              disabled={savingBooking}
+              className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition ${
+                savedBooking ? 'bg-emerald-600' : 'bg-slate-900 hover:bg-slate-800'
+              }`}
+            >
+              {savedBooking ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+              <span>{savedBooking ? 'Booked in Postgres' : savingBooking ? 'Saving...' : 'Book Surgery'}</span>
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -237,13 +349,13 @@ export const SurgeryModule: React.FC = () => {
               height={120}
               onMouseDown={startSigning}
               onMouseMove={sign}
-              onMouseUp={() => { setIsSigning(false); setSignatureDone(true); }}
+              onMouseUp={() => { setIsSigning(false); handleSaveSignature(); }}
               onMouseLeave={() => setIsSigning(false)}
             />
           </div>
           <div className="flex justify-between items-center mt-2">
             <span className="text-[11px] text-slate-500">
-              {signatureDone ? '✅ Signature recorded' : 'Please sign in the box above'}
+              {signatureDone ? '✅ Signature recorded & synced' : 'Please sign in the box above'}
             </span>
             <button
               onClick={clearSignature}
