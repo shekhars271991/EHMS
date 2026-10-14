@@ -74,6 +74,19 @@ export class PatientController {
         return res.status(400).json({ error: 'First name, last name, DOB, gender, and phone are required.' });
       }
 
+      const normalizedPhone = phone.trim();
+
+      // Enforce: two patients with same phone number will not be allowed
+      const existingPatient = await prisma.patient.findFirst({
+        where: { phone: normalizedPhone },
+      });
+
+      if (existingPatient) {
+        return res.status(409).json({
+          error: `A patient with phone number ${normalizedPhone} is already registered (${existingPatient.mrn} - ${existingPatient.firstName} ${existingPatient.lastName}). Duplicate phone numbers are not allowed.`,
+        });
+      }
+
       const mrn = await PatientController.generateMRN();
 
       const patient = await prisma.patient.create({

@@ -9,6 +9,7 @@ import { EyeCanvas } from './components/encounter/EyeCanvas';
 import { SurgeryModule } from './components/surgery/SurgeryModule';
 import { PrescriptionPad } from './components/rx/PrescriptionPad';
 import { NewPatientModal } from './components/patient/NewPatientModal';
+import { PatientDirectory } from './components/patient/PatientDirectory';
 import { LoginPage } from './components/auth/LoginPage';
 import { api } from './api/client';
 
@@ -140,9 +141,17 @@ export const App: React.FC = () => {
       />
 
       {/* Persistent sticky patient banner across clinical modules */}
-      {currentTab !== 'queue' && <PatientBanner patient={activePatient} />}
+      {currentTab !== 'queue' && currentTab !== 'directory' && <PatientBanner patient={activePatient} />}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Tab 0: Patient Directory (Search by Name or Phone) */}
+        {currentTab === 'directory' && (
+          <PatientDirectory
+            onSelectPatient={handlePatientSelect}
+            onOpenRegisterModal={() => setIsRegisterOpen(true)}
+          />
+        )}
+
         {/* Tab 1: Queue & Triage Desk */}
         {currentTab === 'queue' && (
           <QueueDesk

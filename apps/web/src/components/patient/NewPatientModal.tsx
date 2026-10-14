@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, UserPlus, Loader2 } from 'lucide-react';
+import { X, UserPlus, Loader2, AlertCircle } from 'lucide-react';
 import { api } from '../../api/client';
 
 interface NewPatientModalProps {
@@ -20,11 +20,13 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
   const [hypertension, setHypertension] = useState(false);
   const [chiefComplaint, setChiefComplaint] = useState('Routine eye checkup');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setSaving(true);
     try {
       const allergyList = allergies
@@ -37,7 +39,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
         lastName,
         dob,
         gender,
-        phone,
+        phone: phone.trim(),
         idCard: aadhaar ? { type: 'Aadhaar', number: aadhaar } : null,
         allergies: allergyList,
         systemicHistory: { diabetes, hypertension },
@@ -53,7 +55,8 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
       onClose();
     } catch (err: any) {
       console.error('Failed to create patient:', err);
-      alert('Error registering patient: ' + (err.response?.data?.error || err.message));
+      const msg = err.response?.data?.error || err.message;
+      setError(msg);
     } finally {
       setSaving(false);
     }
@@ -71,6 +74,13 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-lg bg-rose-50 border border-rose-300 text-rose-800 text-xs flex items-start space-x-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600 mt-0.5" />
+            <div className="font-medium">{error}</div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4 text-xs">
           <div className="grid grid-cols-2 gap-3">

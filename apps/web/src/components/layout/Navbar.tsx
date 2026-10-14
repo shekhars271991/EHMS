@@ -1,5 +1,5 @@
 import React from 'react';
-import { Eye, Users, FileText, Scissors, Moon, Sun, LogOut } from 'lucide-react';
+import { Eye, Users, FileText, Scissors, Moon, Sun, LogOut, BookOpen } from 'lucide-react';
 
 interface NavbarProps {
   currentTab: string;
@@ -19,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLogout,
 }) => {
   const navItems = [
+    { id: 'directory', label: 'Patient Directory', icon: BookOpen },
     { id: 'queue', label: 'Queue & Triage', icon: Users },
     { id: 'encounter', label: 'Eye Exam Lane', icon: Eye },
     { id: 'surgery', label: 'Surgery & OT Suite', icon: Scissors },

@@ -84,7 +84,7 @@ model Patient {
   lastName        String
   dob             DateTime
   gender          String
-  phone           String
+  phone           String       @unique
   idCard          Json?        // { type: "Aadhaar", number: "..." }
   emergencyContact Json?       // { name: "...", relation: "...", phone: "..." }
   allergies       Json         @default("[]") // ["Ciprofloxacin", "Latex"]
