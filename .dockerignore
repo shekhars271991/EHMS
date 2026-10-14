@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules
+**/node_modules
+**/dist
+**/build
+**/.env*
+**/uploads
+apps/api/src/db/seed.ts
+test_*.js
+pgdata
+*.log
+npm-debug.log*

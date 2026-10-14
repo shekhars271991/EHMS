@@ -1,16 +1,20 @@
 import fs from 'fs';
+import { Storage } from '@google-cloud/storage';
 import path from 'path';
+import { randomUUID } from 'crypto';
+import { Readable } from 'stream';
 
 export interface UploadedFileResult {
-  fileUrl: string;
   filename: string;
   mimeType: string;
   size: number;
+  fileKey: string;
 }
 
 export interface IStorageService {
   uploadFile(file: Express.Multer.File, subfolder: string): Promise<UploadedFileResult>;
-  deleteFile(fileUrl: string): Promise<void>;
+  downloadFile(fileKey: string): Promise<Readable>;
+  deleteFile(fileKey: string): Promise<void>;
 }
 
 // 1. Local Storage Implementation (default for development/offline)
@@ -30,51 +34,84 @@ export class LocalStorageService implements IStorageService {
       fs.mkdirSync(targetFolder, { recursive: true });
     }
 
-    const uniqueName = `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}`;
+    const uniqueName = `${Date.now()}-${randomUUID()}-${path.basename(file.originalname).replace(/[^\w.-]/g, '_')}`;
     const destinationPath = path.join(targetFolder, uniqueName);
 
     fs.writeFileSync(destinationPath, file.buffer);
 
     return {
-      fileUrl: `/uploads/${subfolder}/${uniqueName}`,
       filename: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
+      fileKey: `${subfolder}/${uniqueName}`,
     };
   }
 
-  async deleteFile(fileUrl: string): Promise<void> {
-    const relativePath = fileUrl.replace(/^\/uploads\//, '');
-    const fullPath = path.join(this.baseDir, relativePath);
+  async downloadFile(fileKey: string): Promise<Readable> {
+    const fullPath = this.resolveFileKey(fileKey);
+    await fs.promises.access(fullPath, fs.constants.R_OK);
+    return fs.createReadStream(fullPath);
+  }
+
+  async deleteFile(fileKey: string): Promise<void> {
+    const fullPath = this.resolveFileKey(fileKey);
     if (fs.existsSync(fullPath)) {
       fs.unlinkSync(fullPath);
     }
+  }
+
+  private resolveFileKey(fileKey: string): string {
+    if (!fileKey || path.posix.isAbsolute(fileKey) || fileKey.split(/[\\/]/).some((part) => part === '..')) {
+      throw new Error('Invalid attachment key');
+    }
+    const fullPath = path.resolve(this.baseDir, fileKey);
+    if (!fullPath.startsWith(`${this.baseDir}${path.sep}`)) {
+      throw new Error('Invalid attachment key');
+    }
+    return fullPath;
   }
 }
 
 // 2. Google Cloud Storage (GCS) Pluggable Adapter
 export class GCSStorageService implements IStorageService {
   private bucketName: string;
+  private storage: Storage;
 
   constructor(bucketName: string) {
     this.bucketName = bucketName;
+    this.storage = new Storage();
   }
 
   async uploadFile(file: Express.Multer.File, subfolder: string): Promise<UploadedFileResult> {
-    // Note: When GCS credentials are provided, @google-cloud/storage will upload file.buffer to GCS bucket
-    const objectKey = `${subfolder}/${Date.now()}_${file.originalname}`;
-    const publicUrl = `https://storage.googleapis.com/${this.bucketName}/${objectKey}`;
+    const safeFilename = path.basename(file.originalname).replace(/[^\w.-]/g, '_');
+    const objectKey = `${subfolder}/${Date.now()}-${randomUUID()}-${safeFilename}`;
+    await this.storage.bucket(this.bucketName).file(objectKey).save(file.buffer, {
+      resumable: false,
+      metadata: { contentType: file.mimetype },
+    });
 
     return {
-      fileUrl: publicUrl,
       filename: file.originalname,
       mimeType: file.mimetype,
       size: file.size,
+      fileKey: objectKey,
     };
   }
 
-  async deleteFile(fileUrl: string): Promise<void> {
-    // GCS delete object implementation
+  async downloadFile(fileKey: string): Promise<Readable> {
+    this.validateFileKey(fileKey);
+    return this.storage.bucket(this.bucketName).file(fileKey).createReadStream();
+  }
+
+  async deleteFile(fileKey: string): Promise<void> {
+    this.validateFileKey(fileKey);
+    await this.storage.bucket(this.bucketName).file(fileKey).delete({ ignoreNotFound: true });
+  }
+
+  private validateFileKey(fileKey: string) {
+    if (!fileKey || path.posix.isAbsolute(fileKey) || fileKey.split('/').some((part) => !part || part === '..')) {
+      throw new Error('Invalid attachment key');
+    }
   }
 }
 
@@ -83,6 +120,9 @@ export function createStorageService(): IStorageService {
   const provider = process.env.STORAGE_PROVIDER || 'LOCAL';
   if (provider === 'GCS' && process.env.GCS_BUCKET_NAME) {
     return new GCSStorageService(process.env.GCS_BUCKET_NAME);
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('GCS storage must be configured in production.');
   }
   return new LocalStorageService(process.env.UPLOAD_DIR || './uploads');
 }

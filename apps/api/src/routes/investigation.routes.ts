@@ -10,6 +10,7 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 
 router.use(authenticateJWT as any);
 
 router.post('/order', logAuditEvent('ORDER_INVESTIGATION', 'InvestigationOrder') as any, InvestigationController.createOrder as any);
+router.get('/:id/attachments/file', logAuditEvent('DOWNLOAD_ATTACHMENT', 'InvestigationOrder') as any, InvestigationController.downloadAttachment as any);
 router.post('/:id/upload', upload.single('scanImage'), logAuditEvent('UPLOAD_SCAN', 'InvestigationOrder') as any, InvestigationController.uploadAttachment as any);
 router.get('/encounter/:encounterId', InvestigationController.listByEncounter as any);
 
