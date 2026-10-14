@@ -32,3 +32,6 @@ steps:
 
 images:
   - asia-northeast3-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/ehms-clinic:$SHORT_SHA
+
+options:
+  logging: CLOUD_LOGGING_ONLY
