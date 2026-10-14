@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { prisma } from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { VisitStatus } from '@ehms/shared';
+import { sendInternalError } from '../utils/httpErrors';
 
 export class EncounterController {
   // 1. Live Clinic Queue
@@ -31,7 +32,7 @@ export class EncounterController {
 
       return res.json({ encounters });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Encounter', 'Unable to process visit request');
     }
   }
 
@@ -61,7 +62,7 @@ export class EncounterController {
 
       return res.status(201).json({ encounter });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Encounter', 'Unable to process visit request');
     }
   }
 
@@ -85,7 +86,7 @@ export class EncounterController {
 
       return res.json({ encounter });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Encounter', 'Unable to process visit request');
     }
   }
 
@@ -113,7 +114,7 @@ export class EncounterController {
 
       return res.json({ encounter });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Encounter', 'Unable to process visit request');
     }
   }
 
@@ -139,7 +140,7 @@ export class EncounterController {
       });
       return res.json({ encounter: cancelled });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Encounter', 'Unable to process visit request');
     }
   }
 
@@ -169,7 +170,7 @@ export class EncounterController {
 
       return res.json({ encounter });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Encounter', 'Unable to process visit request');
     }
   }
 
@@ -203,7 +204,7 @@ export class EncounterController {
 
       return res.json({ refraction });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Encounter', 'Unable to process visit request');
     }
   }
 
@@ -242,7 +243,7 @@ export class EncounterController {
 
       return res.status(201).json({ iopRecord });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Encounter', 'Unable to process visit request');
     }
   }
 
@@ -279,7 +280,7 @@ export class EncounterController {
 
       return res.json({ exam });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Encounter', 'Unable to process visit request');
     }
   }
 
@@ -301,7 +302,7 @@ export class EncounterController {
 
       return res.status(201).json({ diagnosis });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Encounter', 'Unable to process visit request');
     }
   }
 }

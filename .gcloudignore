@@ -1,0 +1,9 @@
+#!include:.gitignore
+
+.git/
+**/.env*
+**/node_modules/
+**/dist/
+**/build/
+apps/api/src/db/seed.ts
+test_*.js
