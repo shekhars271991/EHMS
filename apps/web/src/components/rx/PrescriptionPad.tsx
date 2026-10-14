@@ -149,15 +149,15 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
           <div>
             <h1 className="text-xl font-black tracking-tight text-slate-900 flex items-center gap-2">
               <Eye className="w-6 h-6 text-emerald-600" />
-              NETRALAYA EYE HOSPITAL
+              LAKSHMI AABHA EYE CARE
             </h1>
             <p className="text-xs text-slate-500">Super-Specialty Ophthalmology & Refractive Surgery Center</p>
-            <p className="text-xs text-slate-500">123 Health City Avenue | Phone: +91 11 4567 8900</p>
+            <p className="text-xs text-slate-500">Opp. Medical Hub, Ring Road | Phone: +91 98450 12345</p>
           </div>
           <div className="text-right text-xs">
-            <p className="font-bold text-sm text-slate-900">Dr. Anand Patel, MS</p>
-            <p className="text-slate-600">Reg No: MCI-OPH-88421</p>
-            <p className="text-slate-500">Consultant Cataract & Refractive Surgeon</p>
+            <p className="font-bold text-sm text-slate-900">Dr. Prajwal Kumar, MS (Ophthal)</p>
+            <p className="text-slate-600">Reg No: KMC-OPH-54129</p>
+            <p className="text-slate-500">Chief Consultant Cataract & Refractive Surgeon</p>
             <p className="text-slate-400 mt-1">Date: {new Date().toLocaleDateString('en-GB')}</p>
           </div>
         </div>
@@ -230,9 +230,9 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
             <p className="text-[11px] text-slate-400">Emergency 24x7 Casualty: +91 11 4567 8999</p>
           </div>
           <div className="text-center">
-            <div className="w-40 border-b border-slate-400 mb-1"></div>
-            <p className="font-bold text-slate-900">Dr. Anand Patel, MS</p>
-            <p className="text-[10px] text-slate-500">Authorized Medical Practitioner</p>
+            <div className="w-44 border-b border-slate-400 mb-1"></div>
+            <p className="font-bold text-slate-900">Dr. Prajwal Kumar, MS</p>
+            <p className="text-[10px] text-slate-500">Chief Ophthalmologist & Eye Surgeon</p>
           </div>
         </div>
       </div>

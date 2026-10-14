@@ -9,9 +9,16 @@ import { EyeCanvas } from './components/encounter/EyeCanvas';
 import { SurgeryModule } from './components/surgery/SurgeryModule';
 import { PrescriptionPad } from './components/rx/PrescriptionPad';
 import { NewPatientModal } from './components/patient/NewPatientModal';
+import { LoginPage } from './components/auth/LoginPage';
 import { api } from './api/client';
 
 export const App: React.FC = () => {
+  // Doctor Auth State
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    const cached = localStorage.getItem('ehms_user');
+    return cached ? JSON.parse(cached) : null;
+  });
+
   const [currentTab, setCurrentTab] = useState<string>('encounter');
   const [darkMode, setDarkMode] = useState<boolean>(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState<boolean>(false);
@@ -49,11 +56,12 @@ export const App: React.FC = () => {
     iopOS: 14.1,
   });
 
-  // On first mount, log in and fetch the first live encounter from PostgreSQL
+  // Fetch initial queue when user is authenticated
   useEffect(() => {
+    if (!currentUser) return;
+
     const initApp = async () => {
       try {
-        await api.login();
         const queue = await api.getQueue();
         if (queue && queue.length > 0) {
           loadEncounter(queue[0].id);
@@ -63,7 +71,18 @@ export const App: React.FC = () => {
       }
     };
     initApp();
-  }, []);
+  }, [currentUser]);
+
+  const handleLoginSuccess = (user: any) => {
+    localStorage.setItem('ehms_user', JSON.stringify(user));
+    setCurrentUser(user);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('ehms_token');
+    localStorage.removeItem('ehms_user');
+    setCurrentUser(null);
+  };
 
   const loadEncounter = async (encounterId: string) => {
     try {
@@ -105,6 +124,10 @@ export const App: React.FC = () => {
     setCurrentTab('encounter');
   };
 
+  if (!currentUser) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
+
   return (
     <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'}`}>
       <Navbar
@@ -112,6 +135,8 @@ export const App: React.FC = () => {
         setCurrentTab={setCurrentTab}
         darkMode={darkMode}
         setDarkMode={setDarkMode}
+        doctorName={currentUser.fullName}
+        onLogout={handleLogout}
       />
 
       {/* Persistent sticky patient banner across clinical modules */}
