@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, Lock, Mail, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Lock, Mail, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { api } from '../../api/client';
 
 interface LoginPageProps {
@@ -38,19 +38,45 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center p-4">
       <div className="w-full max-w-md">
         {/* Clinic Branding */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center p-3 bg-gradient-to-tr from-emerald-500 to-sky-500 rounded-2xl shadow-lg shadow-emerald-500/20 mb-3">
-            <Eye className="w-8 h-8 text-white" />
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white p-1.5 shadow-xl shadow-emerald-500/10 border-2 border-emerald-500/30 mb-3">
+            <img
+              src="/assets/clinic_logo.jpg"
+              alt="Lakshmi Abha Eye Care Logo"
+              className="w-full h-full object-contain rounded-xl"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
           </div>
           <h1 className="text-2xl font-black text-white tracking-tight">
-            LAKSHMI AABHA EYE CARE
+            LAKSHMI ABHA EYE CARE
           </h1>
-          <p className="text-xs text-emerald-400 font-semibold tracking-wide uppercase mt-1">
-            Super-Specialty Ophthalmology & Refractive Center
+          <p className="text-xs text-emerald-400 font-semibold tracking-wide uppercase mt-0.5">
+            WELLNESS CENTER • "Your Vision Our Priority"
           </p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-[11px] text-slate-400 mt-1">
             Doctor Clinical Portal & Electronic Medical Records (EMR)
           </p>
+        </div>
+
+        {/* Doctor Spotlight Card */}
+        <div className="mb-4 bg-slate-800/80 rounded-xl border border-slate-700/80 p-3 flex items-center space-x-3.5 shadow-sm">
+          <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-emerald-400 shrink-0 bg-slate-900 shadow">
+            <img
+              src="/assets/doctor_prajjwal.jpeg"
+              alt="Dr. Prajjwal Kumar"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLElement).style.display = 'none';
+              }}
+            />
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-xs font-bold text-white truncate">Dr. Prajjwal Kumar, MS (Ophthalmology)</h3>
+            <p className="text-[11px] text-emerald-400 font-medium">Senior Retina Specialist & Eye Surgeon</p>
+            <p className="text-[10px] text-slate-400 truncate">Phone: +91 74080 89279 / +91 80890 91254</p>
+          </div>
         </div>
 
         {/* Login Card */}
@@ -132,14 +158,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               className="w-full py-2 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center justify-center space-x-1.5 transition"
             >
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Fill: Dr. Prajwal Kumar (Lakshmi Aabha Eye Care)</span>
+              <span>Fill: Dr. Prajjwal Kumar (Lakshmi Abha Eye Care)</span>
             </button>
           </div>
         </div>
 
         {/* Footer */}
         <p className="text-center text-xs text-slate-500 mt-6">
-          Netralaya EHMS • HIPAA & DISHA Compliant Ophthalmology System
+          Lakshmi Abha Eye Care Wellness Center • PostgreSQL 16 EMR
         </p>
       </div>
     </div>

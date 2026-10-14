@@ -8,22 +8,23 @@ async function main() {
 
   const passwordHash = await bcrypt.hash('eyeClinic123!', 10);
 
-  // 1. Create Staff Users (Lakshmi Aabha Eye Care)
+  // 1. Create Staff Users (Lakshmi Abha Eye Care)
   const drPrajwalHash = await bcrypt.hash('EyeCare@2026', 10);
   const drPrajwal = await prisma.user.upsert({
     where: { email: 'dr.prajwal@lakshmiaabha.com' },
     update: {
-      fullName: 'Dr. Prajwal Kumar, MS (Ophthalmology)',
+      fullName: 'Dr. Prajjwal Kumar, MS (Ophthalmology)',
       passwordHash: drPrajwalHash,
       licenseNumber: 'KMC-OPH-54129',
+      phone: '+91 74080 89279',
     },
     create: {
       email: 'dr.prajwal@lakshmiaabha.com',
       passwordHash: drPrajwalHash,
-      fullName: 'Dr. Prajwal Kumar, MS (Ophthalmology)',
+      fullName: 'Dr. Prajjwal Kumar, MS (Ophthalmology)',
       role: 'OPHTHALMOLOGIST',
       licenseNumber: 'KMC-OPH-54129',
-      phone: '+91 98450 12345',
+      phone: '+91 74080 89279',
     },
   });
 

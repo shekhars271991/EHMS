@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Plus, Trash2, Printer, Eye, Save, Check } from 'lucide-react';
+import { FileText, Plus, Trash2, Printer, Save, Check } from 'lucide-react';
 import { PrescriptionItem, OcularSide } from '@ehms/shared';
 import { api } from '../../api/client';
 
@@ -146,18 +146,32 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
       {/* Printable Letterhead */}
       <div className="border border-slate-200 rounded-lg p-6 bg-white shadow-2xs">
         <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-4">
-          <div>
-            <h1 className="text-xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-              <Eye className="w-6 h-6 text-emerald-600" />
-              LAKSHMI AABHA EYE CARE
-            </h1>
-            <p className="text-xs text-slate-500">Super-Specialty Ophthalmology & Refractive Surgery Center</p>
-            <p className="text-xs text-slate-500">Opp. Medical Hub, Ring Road | Phone: +91 98450 12345</p>
+          <div className="flex items-start space-x-3.5">
+            <div className="w-16 h-16 rounded-xl overflow-hidden bg-white p-1 border border-emerald-500/30 shadow shrink-0">
+              <img
+                src="/assets/clinic_logo.jpg"
+                alt="Lakshmi Abha Eye Care Logo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            </div>
+            <div>
+              <h1 className="text-lg font-black tracking-tight text-slate-900 leading-tight">
+                LAKSHMI ABHA EYE CARE
+              </h1>
+              <p className="text-xs font-bold text-emerald-700 tracking-wide">
+                WELLNESS CENTER • "Your Vision Our Priority"
+              </p>
+              <p className="text-[11px] text-slate-500">Super-Specialty Ophthalmology & Vitreo-Retinal Surgery Center</p>
+              <p className="text-[11px] text-slate-500">Phone: +91 74080 89279 / +91 80890 91254 | lakshmiabhaeyecarewellnesscenter@gmail.com</p>
+            </div>
           </div>
-          <div className="text-right text-xs">
-            <p className="font-bold text-sm text-slate-900">Dr. Prajwal Kumar, MS (Ophthal)</p>
+          <div className="text-right text-xs shrink-0 pl-4">
+            <p className="font-bold text-sm text-slate-900">Dr. Prajjwal Kumar, MS (Ophthal)</p>
             <p className="text-slate-600">Reg No: KMC-OPH-54129</p>
-            <p className="text-slate-500">Chief Consultant Cataract & Refractive Surgeon</p>
+            <p className="text-emerald-700 font-semibold text-[11px]">Senior Vitreo-Retinal Surgeon</p>
             <p className="text-slate-400 mt-1">Date: {new Date().toLocaleDateString('en-GB')}</p>
           </div>
         </div>
@@ -231,8 +245,8 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
           </div>
           <div className="text-center">
             <div className="w-44 border-b border-slate-400 mb-1"></div>
-            <p className="font-bold text-slate-900">Dr. Prajwal Kumar, MS</p>
-            <p className="text-[10px] text-slate-500">Chief Ophthalmologist & Eye Surgeon</p>
+            <p className="font-bold text-slate-900">Dr. Prajjwal Kumar, MS</p>
+            <p className="text-[10px] text-slate-500">Senior Vitreo-Retinal Surgeon</p>
           </div>
         </div>
       </div>
