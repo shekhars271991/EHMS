@@ -129,8 +129,8 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="responsive-card bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
+      <div className="clinical-card-header flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Stethoscope className="w-5 h-5 text-emerald-600" />
           <h3 className="font-bold text-slate-800 text-base">
@@ -219,7 +219,7 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({
               </div>
 
               {lensOD.type === 'CATARACT' && (
-                <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-100">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-100">
                   <div>
                     <label className="text-[10px] text-slate-500 font-medium">NO (0-6)</label>
                     <input
@@ -368,7 +368,7 @@ export const DualEyeExam: React.FC<DualEyeExamProps> = ({
               </div>
 
               {lensOS.type === 'CATARACT' && (
-                <div className="grid grid-cols-4 gap-2 pt-1 border-t border-slate-100">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-100">
                   <div>
                     <label className="text-[10px] text-slate-500 font-medium">NO (0-6)</label>
                     <input

@@ -99,9 +99,9 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <div className="responsive-card bg-white rounded-xl shadow-sm border border-slate-200 p-6">
       {/* Action Header */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200 no-print">
+      <div className="prescription-header flex items-center justify-between mb-6 pb-4 border-b border-slate-200 no-print">
         <div className="flex items-center space-x-2">
           <FileText className="w-5 h-5 text-emerald-600" />
           <h3 className="font-bold text-slate-800 text-lg">Ophthalmic Prescription Pad</h3>
@@ -130,7 +130,7 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
 
       {/* Printable Letterhead */}
       <div className="print-target border border-slate-200 rounded-lg p-6 bg-white shadow-2xs">
-        <div className="flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-4">
+        <div className="prescription-letterhead flex justify-between items-start border-b-2 border-slate-900 pb-4 mb-4">
           <div className="flex items-start space-x-3.5">
             <div className="w-16 h-16 rounded-xl overflow-hidden bg-white p-1 border border-emerald-500/30 shadow shrink-0">
               <img
@@ -162,7 +162,7 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
         </div>
 
         {/* Patient Bar */}
-        <div className="bg-slate-50 p-2.5 rounded border border-slate-200 text-xs mb-6 grid grid-cols-4 gap-2">
+        <div className="prescription-patient-grid bg-slate-50 p-2.5 rounded border border-slate-200 text-xs mb-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
           <div><strong>Patient:</strong> {patientName}</div>
           <div><strong>MRN:</strong> {mrn}</div>
           <div><strong>Clinic:</strong> Cataract & Cornea</div>
@@ -175,6 +175,7 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
             <span className="text-emerald-700 font-serif italic text-lg font-bold">℞</span> Prescription Medications
           </div>
 
+          <div className="responsive-table-wrap responsive-table-prescription overflow-x-auto">
           <table className="w-full text-left text-xs border border-slate-200">
             <thead>
               <tr className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
@@ -220,6 +221,7 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
 
         {generalAdvice.trim() && (
@@ -229,7 +231,7 @@ export const PrescriptionPad: React.FC<PrescriptionPadProps> = ({
         )}
 
         {/* Doctor Signature line */}
-        <div className="flex justify-between items-end pt-8 mt-6 border-t border-slate-200 text-xs">
+        <div className="prescription-signature flex justify-between items-end pt-8 mt-6 border-t border-slate-200 text-xs">
           <div>
             <p className="font-semibold text-slate-700">Next Follow-Up: 1 Week Post-Op</p>
             <p className="text-[11px] text-slate-400">Emergency 24x7 Casualty: +91 11 4567 8999</p>

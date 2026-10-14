@@ -162,7 +162,7 @@ export const PatientProfilePage: React.FC<PatientProfilePageProps> = ({
   return (
     <div className="space-y-6">
       {view === 'visits' ? (
-      <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 no-print">
+      <section className="responsive-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 no-print">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <p className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold">Patient profile</p>
@@ -179,7 +179,7 @@ export const PatientProfilePage: React.FC<PatientProfilePageProps> = ({
               <p className="text-[11px] text-slate-400 mt-1">Linked user record · role PATIENT · MRN {patient.user.mrn || patient.mrn}</p>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="profile-actions flex flex-wrap items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setView('tests')}
@@ -244,7 +244,7 @@ export const PatientProfilePage: React.FC<PatientProfilePageProps> = ({
         </section>
       )}
 
-      {view === 'visits' && <section className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 no-print">
+      {view === 'visits' && <section className="responsive-card bg-white rounded-xl shadow-sm border border-slate-200 p-6 no-print">
         <h3 className="text-lg font-bold text-slate-900 mb-1">Visits</h3>
         <p className="text-xs text-slate-500 mb-4">
           A patient may have multiple visits. After creating a visit, record offline payment, then write and print the prescription.
@@ -279,7 +279,7 @@ export const PatientProfilePage: React.FC<PatientProfilePageProps> = ({
           </button>
         </div>
 
-        <div className="overflow-x-auto border border-slate-200 rounded-lg">
+        <div className="responsive-table-wrap responsive-table-visits overflow-x-auto border border-slate-200 rounded-lg">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="bg-slate-50 text-slate-600 font-semibold uppercase border-b border-slate-200">
@@ -374,8 +374,8 @@ export const PatientProfilePage: React.FC<PatientProfilePageProps> = ({
       )}
 
       {showSurgeryForm && (
-        <div className="fixed inset-0 z-[60] bg-slate-950/50 flex items-center justify-center p-4" role="presentation">
-          <form onSubmit={handleAddSurgery} className="w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 p-6" role="dialog" aria-modal="true" aria-labelledby="add-surgery-title">
+        <div className="surgery-modal-overlay fixed inset-0 z-[60] bg-slate-950/50 flex items-center justify-center p-4" role="presentation">
+          <form onSubmit={handleAddSurgery} className="surgery-modal-card w-full max-w-lg bg-white rounded-xl shadow-2xl border border-slate-200 p-6" role="dialog" aria-modal="true" aria-labelledby="add-surgery-title">
             <div className="flex items-center justify-between mb-5">
               <div>
                 <p className="text-xs uppercase tracking-wide text-emerald-700 font-semibold">{patient.firstName} {patient.lastName} · {patient.mrn}</p>
@@ -403,7 +403,7 @@ export const PatientProfilePage: React.FC<PatientProfilePageProps> = ({
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2 mt-6">
+            <div className="surgery-modal-actions flex justify-end gap-2 mt-6">
               <button type="button" onClick={() => setShowSurgeryForm(false)} className="px-4 py-2 rounded-lg border border-slate-300 text-sm font-medium text-slate-700">Cancel</button>
               <button type="submit" disabled={savingSurgery} className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold disabled:opacity-60">{savingSurgery ? 'Scheduling...' : 'Schedule surgery'}</button>
             </div>

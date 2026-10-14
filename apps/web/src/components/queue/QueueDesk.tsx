@@ -73,7 +73,7 @@ export const QueueDesk: React.FC<QueueDeskProps> = ({ onSelectPatient, onOpenReg
   });
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+    <div className="responsive-card bg-white rounded-xl shadow-sm border border-slate-200 p-5">
       {/* Header & Registration CTA */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
@@ -83,7 +83,7 @@ export const QueueDesk: React.FC<QueueDeskProps> = ({ onSelectPatient, onOpenReg
           </h2>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="queue-actions flex items-center space-x-3">
           <button
             onClick={fetchQueue}
             title="Refresh queue"
@@ -99,7 +99,7 @@ export const QueueDesk: React.FC<QueueDeskProps> = ({ onSelectPatient, onOpenReg
               placeholder="Search by Name, Phone, or MRN..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs w-64 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+              className="queue-search-input pl-9 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs w-64 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
             />
           </div>
 
@@ -114,7 +114,7 @@ export const QueueDesk: React.FC<QueueDeskProps> = ({ onSelectPatient, onOpenReg
       </div>
 
       {/* Queue Table */}
-      <div className="overflow-x-auto">
+      <div className="responsive-table-wrap responsive-table-queue overflow-x-auto">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-slate-50 text-slate-600 font-semibold uppercase border-b border-slate-200">
