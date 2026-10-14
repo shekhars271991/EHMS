@@ -1,0 +1,21 @@
+{
+  "name": "eye-hospital-emr-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Comprehensive Ophthalmology Electronic Medical Record (EMR) & Clinic Management System",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspaces",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.4.5"
+  }
+}

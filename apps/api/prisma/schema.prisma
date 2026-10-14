@@ -1,0 +1,316 @@
+// Prisma Schema for Ophthalmology EMR (EHMS)
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum OcularSide {
+  OD
+  OS
+  OU
+}
+
+enum VisitStatus {
+  REGISTERED
+  OPTOMETRY_IN_PROGRESS
+  DILATING
+  DOCTOR_WAITING
+  DOCTOR_EXAM
+  INVESTIGATION
+  BILLING
+  COMPLETED
+  CANCELLED
+}
+
+enum UserRole {
+  ADMIN
+  OPHTHALMOLOGIST
+  OPTOMETRIST
+  NURSE
+  COUNSELOR
+  BILLING
+  PHARMACIST
+}
+
+enum TonometryMethod {
+  GOLDMANN
+  NCT
+  TONOPEN
+  PERKINS
+  ICARE
+}
+
+enum SurgeryStatus {
+  SCHEDULED
+  IN_PRE_OP
+  IN_OT
+  RECOVERY
+  DISCHARGED
+  CANCELLED
+}
+
+// 1. Staff & Users
+model User {
+  id               String       @id @default(uuid())
+  email            String       @unique
+  passwordHash     String
+  fullName         String
+  role             UserRole
+  licenseNumber    String?
+  phone            String?
+  isActive         Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  doctorEncounters Encounter[]  @relation("DoctorEncounters")
+  optomEncounters  Encounter[]  @relation("OptomEncounters")
+  refractions      Refraction[]
+  exams            OphthalmicExam[]
+  prescriptions    Prescription[]
+  surgeries        SurgicalBooking[] @relation("SurgeonSurgeries")
+  auditLogs        AuditLog[]
+}
+
+// 2. Patient Master
+model Patient {
+  id              String       @id @default(uuid())
+  mrn             String       @unique // e.g. "EYE-2026-000101"
+  firstName       String
+  lastName        String
+  dob             DateTime
+  gender          String
+  phone           String
+  idCard          Json?        // { type: "Aadhaar", number: "..." }
+  emergencyContact Json?       // { name: "...", relation: "...", phone: "..." }
+  allergies       Json         @default("[]") // ["Ciprofloxacin", "Latex"]
+  systemicHistory Json         @default("{}") // { diabetes: true, hypertension: false }
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  encounters      Encounter[]
+  surgeries       SurgicalBooking[]
+  invoices        Invoice[]
+}
+
+// 3. Clinical Encounter / Queue Visit
+model Encounter {
+  id              String       @id @default(uuid())
+  patientId       String
+  patient         Patient      @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  
+  doctorId        String?
+  doctor          User?        @relation("DoctorEncounters", fields: [doctorId], references: [id])
+  
+  optometristId   String?
+  optometrist     User?        @relation("OptomEncounters", fields: [optometristId], references: [id])
+  
+  visitDate       DateTime     @default(now())
+  tokenNumber     Int          @default(1)
+  visitType       String       @default("NEW") // "NEW", "FOLLOW_UP", "POST_OP", "EMERGENCY"
+  status          VisitStatus  @default(REGISTERED)
+  
+  dilatedAt       DateTime?
+  dilationDrops   String?      // e.g. "Tropicamide + Phenylephrine"
+  
+  chiefComplaint  String?
+  hpi             String?      // History of Present Illness
+  clinicalNotes   String?
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  refraction      Refraction?
+  iopRecords      IOPRecord[]
+  exam            OphthalmicExam?
+  diagnoses       EncounterDiagnosis[]
+  prescriptions   Prescription[]
+  investigations  InvestigationOrder[]
+  surgeries       SurgicalBooking[]
+  invoices        Invoice[]
+}
+
+// 4. Visual Acuity & Refraction (Workup)
+model Refraction {
+  id              String       @id @default(uuid())
+  encounterId     String       @unique
+  encounter       Encounter    @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  
+  recordedById    String
+  recordedBy      User         @relation(fields: [recordedById], references: [id])
+  
+  // Stored as JSONB for high flexibility & precision
+  vaData          Json         // { OD: { distanceUnaided: "6/18", distancePinhole: "6/9" }, OS: ... }
+  refractionData  Json         // { autorefract: { OD: ... }, subjectiveAcceptance: { OD: ..., OS: ..., pdDistance: 63 } }
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+// 5. Intraocular Pressure (IOP)
+model IOPRecord {
+  id              String          @id @default(uuid())
+  encounterId     String
+  encounter       Encounter       @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  
+  measurementTime DateTime        @default(now())
+  method          TonometryMethod @default(GOLDMANN)
+  iopOD           Decimal         @db.Decimal(4, 1)
+  iopOS           Decimal         @db.Decimal(4, 1)
+  pachymetryOD    Decimal?        @db.Decimal(5, 1) // corneal thickness in microns
+  pachymetryOS    Decimal?        @db.Decimal(5, 1)
+  correctedOD     Decimal?        @db.Decimal(4, 1)
+  correctedOS     Decimal?        @db.Decimal(4, 1)
+  notes           String?
+
+  createdAt       DateTime        @default(now())
+}
+
+// 6. Detailed Eye Exam Findings
+model OphthalmicExam {
+  id                 String     @id @default(uuid())
+  encounterId        String     @unique
+  encounter          Encounter  @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  
+  doctorId           String
+  doctor             User       @relation(fields: [doctorId], references: [id])
+  
+  anteriorSegment    Json       // OD & OS: lids, conjunctiva, cornea, AC flare/cells, iris, lens (LOCS III)
+  gonioscopy         Json?      // Shaffer / Spaeth 4-quadrant grades
+  posteriorSegment   Json       // OD & OS: disc, CD ratio, macula, vessels, periphery, DR staging
+  canvasAnnotations  Json?      // Vector/Raster coordinates for drawn eye sketches
+  
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+}
+
+// 7. Clinical Diagnoses
+model EncounterDiagnosis {
+  id              String       @id @default(uuid())
+  encounterId     String
+  encounter       Encounter    @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  
+  icd10Code       String       // e.g. "H25.9"
+  diagnosisName   String       // "Senile cataract, unspecified"
+  eye             OcularSide   // OD, OS, OU
+  isPrimary       Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+}
+
+// 8. Ophthalmic Prescriptions
+model Prescription {
+  id              String             @id @default(uuid())
+  encounterId     String
+  encounter       Encounter          @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  
+  doctorId        String
+  doctor          User               @relation(fields: [doctorId], references: [id])
+  
+  generalAdvice   String?            // "Wear sunglasses outdoors, avoid rubbing eyes"
+  createdAt       DateTime           @default(now())
+
+  items           PrescriptionItem[]
+}
+
+model PrescriptionItem {
+  id                  String       @id @default(uuid())
+  prescriptionId      String
+  prescription        Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  
+  drugName            String       // e.g. "Moxifloxacin 0.5% Drops"
+  eye                 OcularSide   // OD, OS, OU
+  dosage              String       // "1 drop"
+  frequency           String       // "QID (4 times daily)"
+  duration            String       // "14 days"
+  specialInstructions String?      // "Tapering schedule"
+}
+
+// 9. Diagnostic Investigations & PACS Imaging
+model InvestigationOrder {
+  id                  String       @id @default(uuid())
+  encounterId         String
+  encounter           Encounter    @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  
+  investigationType   String       // "OCT_MACULA", "OCT_RNFL", "B_SCAN", "FUNDUS_PHOTO", "HFA"
+  eye                 OcularSide
+  status              String       @default("ORDERED") // "ORDERED", "COMPLETED"
+  clinicalIndication  String?
+  findingsSummary     String?
+  attachments         Json         @default("[]") // [{ url: "...", filename: "...", mimeType: "image/png" }]
+  
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
+}
+
+// 10. Surgery Module (Cataract, OT, Biometry & WHO Safety Checklist)
+model SurgicalBooking {
+  id                   String        @id @default(uuid())
+  patientId            String
+  patient              Patient       @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  
+  encounterId          String
+  encounter            Encounter     @relation(fields: [encounterId], references: [id], onDelete: Restrict)
+  
+  surgeonId            String
+  surgeon              User          @relation("SurgeonSurgeries", fields: [surgeonId], references: [id])
+  
+  scheduledDate        DateTime
+  theatreRoom          String?
+  eye                  OcularSide
+  procedureName        String        // "Phacoemulsification with Foldable IOL"
+  anaesthesiaType      String        @default("TOPICAL")
+  status               SurgeryStatus @default(SCHEDULED)
+  
+  // Biometry calculation & selected IOL
+  biometryData         Json?         // { axialLength, k1, k2, targetRefraction, iolModel, iolPower }
+  
+  // Digital Informed Consent
+  consentSigned        Boolean       @default(false)
+  consentSignatureUrl  String?
+  consentTimestamp     DateTime?
+  
+  // WHO Ophthalmic Checklist
+  preOpChecklist       Json          @default("{}")
+  
+  // Intra-op Operative Record
+  operativeNotes       Json?         // { incision, phacoCDE, iolSerialNumber, complications }
+
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+}
+
+// 11. Billing & Invoices
+model Invoice {
+  id              String       @id @default(uuid())
+  patientId       String
+  patient         Patient      @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  
+  encounterId     String
+  encounter       Encounter    @relation(fields: [encounterId], references: [id], onDelete: Restrict)
+  
+  totalAmount     Decimal      @db.Decimal(10, 2)
+  paidAmount      Decimal      @default(0) @db.Decimal(10, 2)
+  paymentStatus   String       @default("PENDING") // "PENDING", "PARTIAL", "PAID"
+  items           Json         // [{ description: "Cataract Package", amount: 25000 }]
+  
+  createdAt       DateTime     @default(now())
+}
+
+// 12. Immutable Audit Trail
+model AuditLog {
+  id              String       @id @default(uuid())
+  userId          String?
+  user            User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  action          String       // "VIEW_RECORD", "UPDATE_EXAM", "SIGN_CONSENT", "GENERATE_RX"
+  resourceType    String       // "Encounter", "Patient", "Surgery"
+  resourceId      String
+  clientIp        String?
+  userAgent       String?
+  details         Json?
+  timestamp       DateTime     @default(now())
+}
