@@ -8,6 +8,10 @@ import apiRouter from './routes';
 
 dotenv.config();
 
+if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET must be configured in production.');
+}
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -20,7 +24,9 @@ app.use(morgan('dev'));
 
 // Static serving for local uploads (DICOM, fundus images, scans, signatures)
 const uploadDir = path.resolve(process.env.UPLOAD_DIR || './uploads');
-app.use('/uploads', express.static(uploadDir));
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/uploads', express.static(uploadDir));
+}
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {
@@ -35,13 +41,23 @@ app.get('/health', (req: Request, res: Response) => {
 // Mount API v1
 app.use('/api/v1', apiRouter);
 
+// Serve the built React app from the same Cloud Run service as the API.
+const webDistDir = path.resolve(process.env.WEB_DIST_DIR || './apps/web/dist');
+app.use(express.static(webDistDir, { index: false }));
+app.use('/api', (req: Request, res: Response) => {
+  res.status(404).json({ error: 'API endpoint not found' });
+});
+app.get('*', (req: Request, res: Response, next: NextFunction) => {
+  res.sendFile(path.join(webDistDir, 'index.html'), (err) => {
+    if (err) next(err);
+  });
+});
+
 // Global Error Handler
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error('[Unhandled Server Error]:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
-  });
+  const status = Number.isInteger(err.status) && err.status >= 400 && err.status < 500 ? err.status : 500;
+  res.status(status).json({ error: status < 500 ? 'Invalid request' : 'Internal Server Error' });
 });
 
 app.listen(PORT, () => {

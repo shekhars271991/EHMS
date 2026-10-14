@@ -43,8 +43,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-50 bg-slate-900 text-white shadow-md no-print border-b border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 gap-3">
-          <div className="flex items-center space-x-3 cursor-pointer min-w-0" onClick={() => setCurrentTab('directory')}>
+        <div className="app-header-inner flex items-center justify-between h-16 gap-3">
+          <div className="app-brand flex items-center space-x-3 cursor-pointer min-w-0" onClick={() => setCurrentTab('directory')}>
             <div className="w-10 h-10 rounded-xl overflow-hidden bg-white p-0.5 border border-emerald-500/30 shadow-md flex items-center justify-center shrink-0">
               <img
                 src="/assets/clinic_logo.jpg"
@@ -55,13 +55,13 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }}
               />
             </div>
-            <div className="min-w-0 hidden sm:block">
-              <span className="font-bold text-sm tracking-tight text-white">Lakshmi Abha Eye Care</span>
-              <p className="text-[11px] text-slate-400 italic truncate">Your Vision Our Priority</p>
+            <div className="min-w-0">
+              <span className="font-bold text-xs sm:text-sm tracking-tight text-white">Lakshmi Abha Eye Care</span>
+              <p className="hidden sm:block text-[11px] text-slate-400 italic truncate">Your Vision Our Priority</p>
             </div>
           </div>
 
-          <nav className="flex items-center gap-1">
+          <nav className="app-nav flex items-center gap-1">
             {primaryItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentTab === item.id || (item.id === 'directory' && currentTab === 'profile');
@@ -76,7 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-emerald-400' : 'text-slate-400'}`} />
-                  <span className="hidden sm:inline">{item.label}</span>
+                  <span className="text-[11px] sm:text-sm">{item.label}</span>
                 </button>
               );
             })}
@@ -92,7 +92,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 }`}
               >
                 <Menu className="w-4 h-4" />
-                <span className="hidden sm:inline">More</span>
+                <span className="text-[11px] sm:text-sm">More</span>
               </button>
               {menuOpen && (
                 <div className="absolute right-0 mt-2 w-52 rounded-lg border border-slate-700 bg-slate-900 shadow-xl py-1 z-50">
@@ -118,7 +118,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </nav>
 
-          <div className="flex items-center space-x-2 shrink-0">
+          <div className="app-actions flex items-center space-x-2 shrink-0">
             <button
               onClick={() => setDarkMode(!darkMode)}
               title="Toggle dark mode"

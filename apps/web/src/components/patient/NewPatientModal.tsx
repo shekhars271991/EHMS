@@ -55,8 +55,8 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 border border-slate-200">
+    <div className="patient-modal-overlay fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+      <div className="patient-modal-card bg-white rounded-xl shadow-xl max-w-lg w-full p-6 border border-slate-200">
         <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-4">
           <div>
             <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
@@ -78,7 +78,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
         )}
 
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="font-semibold text-slate-700">First Name *</label>
               <input
@@ -103,7 +103,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             <div>
               <label className="font-semibold text-slate-700">Date of Birth *</label>
               <input
@@ -154,7 +154,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="font-semibold text-slate-700">National ID (Aadhaar / Passport)</label>
               <input
@@ -177,7 +177,7 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({ isOpen, onClos
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2 pt-4 border-t border-slate-200">
+          <div className="patient-modal-actions flex justify-end space-x-2 pt-4 border-t border-slate-200">
             <button
               type="button"
               onClick={onClose}

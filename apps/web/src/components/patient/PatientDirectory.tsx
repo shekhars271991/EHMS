@@ -53,7 +53,7 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+    <div className="responsive-card bg-white rounded-xl shadow-sm border border-slate-200 p-6">
       {/* Directory Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-200">
         <div>
@@ -126,7 +126,7 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
       </form>
 
       {/* Search results summary */}
-      <div className="flex justify-between items-center text-xs text-slate-500 mb-3 px-1">
+      <div className="directory-summary flex justify-between items-center text-xs text-slate-500 mb-3 px-1">
         <span>
           Showing <strong>{patients.length}</strong> registered patient{patients.length !== 1 ? 's' : ''}
           {searchTerm && ` for query "${searchTerm}"`}
@@ -137,7 +137,7 @@ export const PatientDirectory: React.FC<PatientDirectoryProps> = ({ onSelectPati
       </div>
 
       {/* Patients Table */}
-      <div className="overflow-x-auto border border-slate-200 rounded-lg">
+      <div className="responsive-table-wrap responsive-table-directory overflow-x-auto border border-slate-200 rounded-lg">
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-slate-50 text-slate-600 font-semibold uppercase border-b border-slate-200">

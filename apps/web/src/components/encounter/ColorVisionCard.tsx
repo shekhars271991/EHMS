@@ -109,8 +109,8 @@ export const ColorVisionCard: React.FC<ColorVisionCardProps> = ({ patientId, ini
   );
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
-      <div className="flex items-center justify-between mb-4">
+    <div className="responsive-card bg-white rounded-xl shadow-sm border border-slate-200 p-5 mb-6">
+      <div className="clinical-card-header flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Palette className="w-5 h-5 text-violet-600" />
           <h3 className="font-bold text-slate-800 text-base">Color Vision</h3>

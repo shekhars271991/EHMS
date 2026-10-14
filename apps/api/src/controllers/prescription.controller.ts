@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { sendInternalError } from '../utils/httpErrors';
 
 export class PrescriptionController {
   static async create(req: AuthenticatedRequest, res: Response) {
@@ -41,7 +42,7 @@ export class PrescriptionController {
 
       return res.status(201).json({ prescription });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Prescription', 'Unable to process prescription request');
     }
   }
 
@@ -59,7 +60,7 @@ export class PrescriptionController {
 
       return res.json({ prescriptions });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Prescription', 'Unable to process prescription request');
     }
   }
 }

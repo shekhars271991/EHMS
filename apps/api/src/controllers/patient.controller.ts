@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { prisma } from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { sendInternalError } from '../utils/httpErrors';
 
 export class PatientController {
   // Generate unique Medical Record Number (MRN) format: EYE-YYYY-XXXXXX
@@ -57,7 +58,7 @@ export class PatientController {
 
       return res.json({ patients });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Patient', 'Unable to process patient request');
     }
   }
 
@@ -96,7 +97,7 @@ export class PatientController {
 
       return res.json({ patient });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Patient', 'Unable to process patient request');
     }
   }
 
@@ -155,7 +156,7 @@ export class PatientController {
 
       return res.status(201).json({ patient });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Patient', 'Unable to process patient request');
     }
   }
 
@@ -173,7 +174,7 @@ export class PatientController {
       const profile = await PatientController.getOrCreateProfile(id);
       return res.json({ profile });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Patient', 'Unable to process patient request');
     }
   }
 
@@ -209,7 +210,7 @@ export class PatientController {
 
       return res.json({ profile });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Patient', 'Unable to process patient request');
     }
   }
 }

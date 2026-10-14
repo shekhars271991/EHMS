@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma } from '../config/db';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { sendInternalError } from '../utils/httpErrors';
 
 export class SurgeryController {
   // 1. Book / Schedule Surgery
@@ -40,7 +41,7 @@ export class SurgeryController {
 
       return res.status(201).json({ booking });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Surgery', 'Unable to process surgery request');
     }
   }
 
@@ -61,7 +62,7 @@ export class SurgeryController {
 
       return res.json({ booking });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Surgery', 'Unable to process surgery request');
     }
   }
 
@@ -78,7 +79,7 @@ export class SurgeryController {
 
       return res.json({ booking });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Surgery', 'Unable to process surgery request');
     }
   }
 
@@ -98,7 +99,7 @@ export class SurgeryController {
 
       return res.json({ booking });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Surgery', 'Unable to process surgery request');
     }
   }
 
@@ -115,7 +116,7 @@ export class SurgeryController {
 
       return res.json({ bookings });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      return sendInternalError(res, err, 'Surgery', 'Unable to process surgery request');
     }
   }
 }
